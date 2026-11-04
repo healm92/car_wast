@@ -20,27 +20,27 @@
 <body class="bg-gray-100 min-h-screen text-gray-800">
 
     <!-- Navbar -->
-    <nav class="bg-emerald-600 text-white shadow-md p-4 flex justify-between items-center">
-        <div class="flex items-center space-x-3">
+    <nav class="bg-emerald-600 text-white shadow-md p-3 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
             <img src="https://pdoojfiwedjbrjvjtqth.supabase.co/storage/v1/object/public/logo/logo.jpg" 
-                 alt="Logo อบต." class="w-10 h-10 rounded-full object-cover border-2 border-white shadow">
+                 alt="Logo อบต." class="w-8 h-8 rounded-full object-cover border-2 border-white shadow">
             <div>
-                <span class="font-bold text-base block">ระบบติดตามการเก็บขยะ</span>
-                <span class="text-xs text-emerald-200">องค์การบริหารส่วนตำบลเมืองเก่า</span>
+                <span class="font-bold text-sm block leading-tight">ระบบติดตามการเก็บขยะ</span>
+                <span class="text-[10px] text-emerald-200">อบต.เมืองเก่า</span>
             </div>
         </div>
-        <div id="nav-user-info" class="flex items-center space-x-4 text-sm">
-            <span id="nav-driver-display" class="bg-emerald-700 px-3 py-1 rounded-full text-xs">ผู้ใช้งานระบบ</span>
-            <button onclick="logoutSystem()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded transition text-white text-xs shadow">
-                <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
+        <div id="nav-user-info" class="hidden flex items-center space-x-2 text-xs">
+            <span id="nav-driver-display" class="bg-emerald-700 px-2.5 py-1 rounded-full truncate max-w-[120px]"></span>
+            <button onclick="logoutSystem()" class="bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded transition text-white shadow">
+                <i class="fa-solid fa-right-from-bracket"></i>
             </button>
         </div>
     </nav>
 
-    <div class="container mx-auto p-4 max-w-5xl">
+    <div class="container mx-auto p-2 md:p-4 max-w-5xl">
 
         <!-- ================= 1. หน้า Login (Unified) ================= -->
-        <div id="view-login" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg mt-10">
+        <div id="view-login" class="max-w-md mx-auto bg-white p-6 rounded-xl shadow-lg mt-10">
             <div class="text-center mb-6">
                 <img src="https://pdoojfiwedjbrjvjtqth.supabase.co/storage/v1/object/public/logo/logo.jpg" 
                      alt="Logo อบต." class="w-20 h-20 rounded-full object-cover mx-auto mb-2 shadow border-2 border-emerald-600">
@@ -63,15 +63,15 @@
         </div>
 
         <!-- ================= 2. หน้าคนขับเลือกทะเบียนรถก่อนเริ่มงาน ================= -->
-        <div id="view-select-vehicle" class="hidden max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg mt-10">
+        <div id="view-select-vehicle" class="hidden max-w-md mx-auto bg-white p-6 rounded-xl shadow-lg mt-10">
             <h2 class="text-xl font-bold text-emerald-700 mb-2 text-center">
                 <i class="fa-solid fa-truck"></i> เลือกรถขยะประจำรอบ
             </h2>
-            <p class="text-xs text-gray-500 text-center mb-6">เลือกทะเบียนรถที่ท่านใช้งานในวันนี้ (สลับเปลี่ยนได้ตามความเหมาะสม)</p>
+            <p class="text-xs text-gray-500 text-center mb-6">เลือกทะเบียนรถที่ท่านใช้งานในวันนี้</p>
             
             <form onsubmit="startDriverDuty(event)" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">ทะเบียนรถ (ที่ว่างอยู่)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ทะเบียนรถ</label>
                     <select id="select-plate" required class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 text-sm">
                         <option value="">-- กำลังโหลดข้อมูลรถ --</option>
                     </select>
@@ -83,46 +83,48 @@
 
             <div class="mt-4 pt-4 border-t text-center">
                 <button onclick="logoutSystem()" class="text-red-500 hover:text-red-700 text-xs font-semibold">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i> กลับไปหน้าเข้าสู่ระบบ / สลับบัญชี
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> สลับบัญชีผู้ใช้
                 </button>
             </div>
         </div>
 
-        <!-- ================= 3. หน้าจอคนขับ (Driver Workspace) ================= -->
-        <div id="view-driver" class="hidden space-y-4">
-            <div class="bg-white p-4 rounded-xl shadow flex flex-col md:flex-row justify-between items-center gap-4">
+        <!-- ================= 3. หน้าจอคนขับ (Driver Workspace - มือถือใช้งานง่าย) ================= -->
+        <div id="view-driver" class="hidden space-y-3">
+            <div class="bg-white p-3 rounded-xl shadow flex justify-between items-center">
                 <div>
-                    <h3 class="text-lg font-bold text-emerald-800" id="driver-status-title">กำลังปฏิบัติงาน</h3>
-                    <p class="text-xs text-gray-500">GPS Realtime: <span id="gps-status" class="text-orange-500 font-semibold">กำลังค้นหาตำแหน่ง...</span></p>
+                    <h3 class="text-sm font-bold text-emerald-800" id="driver-status-title">กำลังปฏิบัติงาน</h3>
+                    <p class="text-[11px] text-gray-500">GPS: <span id="gps-status" class="text-orange-500 font-semibold">กำลังค้นหา...</span></p>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="simulateAdminOverride()" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg text-xs shadow">
-                        <i class="fa-solid fa-building-columns"></i> บันทึกจากสำนักงาน อบต.
+                <div class="flex gap-1.5">
+                    <button onclick="simulateAdminOverride()" class="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded-lg text-xs shadow" title="บันทึกจากสำนักงาน">
+                        <i class="fa-solid fa-building-columns"></i>
                     </button>
-                    <button onclick="finishDuty()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs shadow">
-                        <i class="fa-solid fa-flag-checkered"></i> จบงานวันนี้
+                    <button onclick="finishDuty()" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-xs shadow" title="จบงานวันนี้">
+                        <i class="fa-solid fa-flag-checkered"></i> จบงาน
                     </button>
                 </div>
             </div>
 
-            <!-- แผนที่พร้อมปุ่มเปลี่ยนมุมมองดาวเทียม/แผนที่ปกติ -->
-            <div class="bg-white p-4 rounded-xl shadow">
+            <!-- แผนที่ควบคุมมุมมองอัตโนมัติแบบ Navigation -->
+            <div class="bg-white p-3 rounded-xl shadow relative">
                 <div class="flex justify-between items-center mb-2">
-                    <h4 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-map-location-dot"></i> แผนที่เส้นทางและบ้านเรือน</h4>
-                    <span class="text-xs text-gray-400">รัศมีเช็คอินอัตโนมัติ: 35 เมตร</span>
+                    <h4 class="font-bold text-gray-700 text-xs"><i class="fa-solid fa-map-location-dot"></i> แผนที่นำทางและเก็บขยะ</h4>
+                    <button id="btn-toggle-follow" onclick="toggleFollowGPS()" class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-[11px] font-semibold border border-emerald-300">
+                        <i class="fa-solid fa-location-crosshairs"></i> ล็อกตามรถ: เปิด
+                    </button>
                 </div>
-                <div id="map" class="rounded-lg shadow-inner"></div>
+                <div id="map" class="rounded-lg shadow-inner h-[380px]"></div>
             </div>
 
-            <!-- รายการบ้าน -->
-            <div class="bg-white p-4 rounded-xl shadow">
-                <h4 class="font-bold text-gray-700 text-sm mb-3"><i class="fa-solid fa-list-check"></i> รายการบ้านในความรับผิดชอบ</h4>
-                <div class="flex gap-2 mb-3">
-                    <select id="filter-moo" onchange="renderDriverHouses()" class="border rounded px-3 py-1 text-xs">
+            <!-- รายการบ้าน (ขนาดใหญ่กดง่ายบนจอมือถือ) -->
+            <div class="bg-white p-3 rounded-xl shadow">
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-bold text-gray-700 text-xs"><i class="fa-solid fa-list-check"></i> รายการบ้านในความรับผิดชอบ</h4>
+                    <select id="filter-moo" onchange="renderDriverHouses()" class="border rounded px-2 py-1 text-xs bg-gray-50">
                         <option value="">ทุกหมู่บ้าน</option>
                     </select>
                 </div>
-                <div id="driver-house-list" class="space-y-2 max-h-96 overflow-y-auto text-sm"></div>
+                <div id="driver-house-list" class="space-y-2 max-h-80 overflow-y-auto text-sm"></div>
             </div>
         </div>
 
@@ -221,6 +223,8 @@
 
         let currentSession = JSON.parse(localStorage.getItem('carwast_session')) || null;
         let map = null, markerUser = null, houseMarkers = [], watchId = null;
+        let isFollowingGPS = true; // ตั้งค่าเริ่มต้นให้แผนที่เลื่อนตาม GPS อัตโนมัติเหมือนนำทาง
+        let initialCenterSet = false;
 
         window.onload = async function() {
             initMonthSelector();
@@ -281,7 +285,10 @@
                 document.getElementById('view-driver').classList.remove('hidden');
                 navUserInfo.classList.remove('hidden');
                 driverDisplay.innerText = `${currentSession.fullName} (${currentSession.plate})`;
-                setTimeout(() => { initMap(); loadDriverHouses(); }, 200);
+                setTimeout(() => { 
+                    initMap(); 
+                    loadDriverHouses(); 
+                }, 200);
             } else if (viewName === 'admin') {
                 document.getElementById('view-admin').classList.remove('hidden');
                 navUserInfo.classList.remove('hidden');
@@ -344,10 +351,9 @@
             select.innerHTML = '<option value="">-- กำลังโหลดข้อมูลรถ --</option>';
             
             const { data: vehicles, error: vError } = await _supabase.from('vehicles').select('*');
-            const { data: activeRuns, error: rError } = await _supabase.from('collection_runs').select('*').is('end_time', null);
+            const { data: activeRuns } = await _supabase.from('collection_runs').select('*').is('end_time', null);
 
             if (vError) {
-                console.error("Error loading vehicles:", vError);
                 select.innerHTML = '<option value="">-- ไม่สามารถโหลดข้อมูลรถได้ --</option>';
                 return;
             }
@@ -356,7 +362,6 @@
             const activePlates = (activeRuns || []).map(r => r.vehicle_plate);
 
             (vehicles || []).forEach(v => {
-                // ป้องกันกรณีรถติดค้างรอบเก่า ให้แสดงขึ้นมาเลือกได้ปกติ
                 const opt = document.createElement('option');
                 opt.value = v.plate_no;
                 opt.textContent = `${v.plate_no} (${v.vehicle_type || 'รถขยะ'}) ${activePlates.includes(v.plate_no) ? '[กำลังใช้งาน]' : ''}`;
@@ -410,11 +415,26 @@
             }
         }
 
-        // ----------------- DRIVER & GPS -----------------
+        // ----------------- DRIVER & GPS NAVIGATION -----------------
         function startDriverWorkspace() {
             document.getElementById('driver-status-title').innerText = `คนขับ: ${currentSession.fullName} | รถ: ${currentSession.plate}`;
             loadDriverMooFilter();
             trackGPS();
+        }
+
+        function toggleFollowGPS() {
+            isFollowingGPS = !isFollowingGPS;
+            const btn = document.getElementById('btn-toggle-follow');
+            if (isFollowingGPS) {
+                btn.className = "bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-[11px] font-semibold border border-emerald-300";
+                btn.innerHTML = `<i class="fa-solid fa-location-crosshairs"></i> ล็อกตามรถ: เปิด`;
+                if (markerUser) {
+                    map.setView(markerUser.getLatLng(), 16);
+                }
+            } else {
+                btn.className = "bg-gray-200 text-gray-700 px-2 py-1 rounded text-[11px] font-semibold border border-gray-300";
+                btn.innerHTML = `<i class="fa-solid fa-location-crosshairs"></i> ล็อกตามรถ: ปิด`;
+            }
         }
 
         async function loadDriverMooFilter() {
@@ -436,6 +456,7 @@
                     const lat = pos.coords.latitude, lng = pos.coords.longitude;
                     document.getElementById('gps-status').innerText = `พิกัด (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
                     document.getElementById('gps-status').className = "text-emerald-600 font-semibold";
+                    
                     updateUserMapMarker(lat, lng);
                 }, () => {
                     document.getElementById('gps-status').innerText = "ไม่สามารถเข้าถึง GPS (ใช้พิกัดจำลอง)";
@@ -449,35 +470,23 @@
         function initMap() {
             if (map) { map.remove(); map = null; }
 
-            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            });
-
-            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: 'Tiles © Esri'
-            });
-
-            const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                maxZoom: 17,
-                attribution: '© OpenTopoMap'
-            });
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
+            const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' });
 
             map = L.map('map', {
                 center: [14.07, 101.58],
-                zoom: 14,
-                layers: [osmLayer]
+                zoom: 15,
+                layers: [satelliteLayer] // ตั้งค่าเริ่มต้นเป็นภาพดาวเทียมคมชัดเหมือน Google Maps
             });
 
             const baseMaps = {
-                "🗺️ แผนที่ถนนปกติ (Standard)": osmLayer,
                 "🛰️ ภาพถ่ายดาวเทียม (Satellite)": satelliteLayer,
+                "🗺️ แผนที่ถนนปกติ (Standard)": osmLayer,
                 "⛰️ ภูมิประเทศ (Terrain)": topoLayer
             };
 
             L.control.layers(baseMaps).addTo(map);
-
             loadHouseMarkers();
         }
 
@@ -491,8 +500,11 @@
 
             (houses || []).forEach(h => {
                 const collected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
-                const color = collected ? 'green' : 'red';
-                const icon = L.divIcon({ html: `<div style="background:${color}; width:14px; height:14px; border-radius:50%; border:2px solid white; box-shadow:0 0 3px rgba(0,0,0,0.5);"></div>`, className: '' });
+                const color = collected ? '#10b981' : '#ef4444'; // เขียว = เก็บแล้ว, แดง = ยังไม่เก็บ
+                const icon = L.divIcon({ 
+                    html: `<div style="background:${color}; width:16px; height:16px; border-radius:50%; border:2px solid white; box-shadow:0 0 4px rgba(0,0,0,0.6);"></div>`, 
+                    className: '' 
+                });
                 const marker = L.marker([h.latitude, h.longitude], { icon }).addTo(map);
                 marker.bindPopup(`<b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>เจ้าของ: ${h.owner || '-'}<br>สถานะ: ${collected ? '✅ เก็บแล้ว' : '❌ ยังไม่เก็บ'}`);
                 houseMarkers.push(marker);
@@ -501,11 +513,20 @@
 
         function updateUserMapMarker(lat, lng) {
             if (!map) return;
+            
             if (markerUser) {
                 markerUser.setLatLng([lat, lng]);
             } else {
-                const icon = L.divIcon({ html: '<i class="fa-solid fa-truck text-blue-600 text-lg"></i>', className: '' });
+                const icon = L.divIcon({ 
+                    html: '<div style="background:#3b82f6; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 6px rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-truck text-white text-[10px]"></i></div>', 
+                    className: '' 
+                });
                 markerUser = L.marker([lat, lng], { icon }).addTo(map).bindPopup("ตำแหน่งรถของคุณ");
+            }
+
+            // ถ้าเปิดโหมดล็อกตามรถ ให้แพนแผนที่ไปที่ตำแหน่งรถทันทีเหมือนระบบนำทาง
+            if (isFollowingGPS) {
+                map.setView([lat, lng], 16, { animate: true });
             }
         }
 
@@ -521,21 +542,21 @@
             const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', todayStr + 'T00:00:00');
 
             if (!houses || houses.length === 0) {
-                container.innerHTML = `<p class="text-gray-400 text-center py-2">ไม่พบข้อมูลบ้าน</p>`;
+                container.innerHTML = `<p class="text-gray-400 text-center py-2 text-xs">ไม่พบข้อมูลบ้าน</p>`;
                 return;
             }
 
             houses.forEach(h => {
                 const log = (logs || []).find(l => l.house_id === h.id && l.status === 'collected');
                 const div = document.createElement('div');
-                div.className = `p-2.5 rounded-lg border flex justify-between items-center ${log ? 'bg-emerald-50 border-emerald-200' : 'bg-white'}`;
+                div.className = `p-3 rounded-lg border flex justify-between items-center ${log ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-200 shadow-sm'}`;
                 div.innerHTML = `
                     <div>
-                        <span class="font-bold">บ้านเลขที่ ${h.house_no} (${h.moo})</span>
+                        <span class="font-bold text-sm">บ้านเลขที่ ${h.house_no} (${h.moo})</span>
                         <p class="text-xs text-gray-500">เจ้าของ: ${h.owner || '-'} | ถัง: ${h.bin_count} ใบ</p>
                     </div>
                     <div>
-                        ${log ? '<span class="text-emerald-600 font-semibold text-xs"><i class="fa-solid fa-check"></i> เก็บแล้ว</span>' : `<button onclick="markCollected(${h.id})" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs shadow">กดเก็บขยะ</button>`}
+                        ${log ? '<span class="text-emerald-600 font-semibold text-xs bg-emerald-100 px-2.5 py-1 rounded-full"><i class="fa-solid fa-check"></i> เก็บแล้ว</span>' : `<button onclick="markCollected(${h.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-check"></i> กดเก็บขยะ</button>`}
                     </div>
                 `;
                 container.appendChild(div);
