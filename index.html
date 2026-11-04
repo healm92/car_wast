@@ -222,16 +222,33 @@
         let currentSession = JSON.parse(localStorage.getItem('carwast_session')) || null;
         let map = null, markerUser = null, houseMarkers = [], watchId = null;
 
-        window.onload = function() {
+        window.onload = async function() {
             initMonthSelector();
             if (currentSession) {
-                if (currentSession.role === 'admin') switchView('admin');
-                else if (currentSession.role === 'driver' && currentSession.plate) {
-                    switchView('driver');
-                    startDriverWorkspace();
-                } else {
-                    switchView('select-vehicle');
-                    loadVehicleDropdown();
+                if (currentSession.role === 'admin') {
+                    switchView('admin');
+                } else if (currentSession.role === 'driver') {
+                    // ตรวจสอบว่ายังมีรอบงานค้างอยู่จริงหรือไม่ในฐานข้อมูล
+                    const { data: activeRun } = await _supabase
+                        .from('collection_runs')
+                        .select('*')
+                        .eq('driver_name', currentSession.fullName)
+                        .is('end_time', null)
+                        .maybeSingle();
+
+                    if (activeRun) {
+                        currentSession.plate = activeRun.vehicle_plate;
+                        currentSession.runId = activeRun.id;
+                        localStorage.setItem('carwast_session', JSON.stringify(currentSession));
+                        switchView('driver');
+                        startDriverWorkspace();
+                    } else {
+                        currentSession.plate = null;
+                        currentSession.runId = null;
+                        localStorage.setItem('carwast_session', JSON.stringify(currentSession));
+                        switchView('select-vehicle');
+                        loadVehicleDropdown();
+                    }
                 }
             } else {
                 switchView('login');
@@ -298,12 +315,29 @@
             }
 
             currentSession = { username: user.username, fullName: user.full_name, role: user.role, plate: null, runId: null };
-            localStorage.setItem('carwast_session', JSON.stringify(currentSession));
-
+            
             if (user.role === 'admin') {
+                localStorage.setItem('carwast_session', JSON.stringify(currentSession));
                 switchView('admin');
             } else {
-                switchView('select-vehicle');
+                // เช็คว่าคนขับคนนี้มีรอบงานที่ค้างอยู่หรือไม่
+                const { data: activeRun } = await _supabase
+                    .from('collection_runs')
+                    .select('*')
+                    .eq('driver_name', user.full_name)
+                    .is('end_time', null)
+                    .maybeSingle();
+
+                if (activeRun) {
+                    currentSession.plate = activeRun.vehicle_plate;
+                    currentSession.runId = activeRun.id;
+                    localStorage.setItem('carwast_session', JSON.stringify(currentSession));
+                    switchView('driver');
+                    startDriverWorkspace();
+                } else {
+                    localStorage.setItem('carwast_session', JSON.stringify(currentSession));
+                    switchView('select-vehicle');
+                }
             }
         }
 
@@ -349,19 +383,26 @@
             startDriverWorkspace();
         }
 
-        function logoutSystem() {
-            if (currentSession && currentSession.role === 'driver' && currentSession.runId) {
-                _supabase.from('collection_runs').update({ end_time: new Date().toISOString(), status: 'completed' }).eq('id', currentSession.runId);
-            }
+        async function logoutSystem() {
+            // ปล. กดออกจากระบบเฉยๆ จะไม่ปิดรอบงาน (เพื่อให้กดเข้ามาทำต่อได้) แต่ถ้ากด "จบงานวันนี้" ถึงจะปิดรอบ
             currentSession = null;
             localStorage.removeItem('carwast_session');
             if (watchId) navigator.geolocation.clearWatch(watchId);
             switchView('login');
         }
 
-        function finishDuty() {
-            if (confirm('คุณต้องการจบการปฏิบัติงานวันนี้ใช่หรือไม่?')) {
-                logoutSystem();
+        async function finishDuty() {
+            if (confirm('คุณต้องการจบการปฏิบัติงานวันนี้ใช่หรือไม่? (รถจะถูกปล่อยให้ว่างสำหรับรอบถัดไป)')) {
+                if (currentSession && currentSession.runId) {
+                    await _supabase.from('collection_runs').update({ 
+                        end_time: new Date().toISOString(), 
+                        status: 'completed' 
+                    }).eq('id', currentSession.runId);
+                }
+                currentSession = null;
+                localStorage.removeItem('carwast_session');
+                if (watchId) navigator.geolocation.clearWatch(watchId);
+                switchView('login');
             }
         }
 
@@ -404,33 +445,27 @@
         function initMap() {
             if (map) { map.remove(); map = null; }
 
-            // 🗺️ กำหนด Layer แผนที่รูปแบบต่างๆ (เหมือน Google Maps)
-            // 1. แผนที่ถนนปกติ (OpenStreetMap)
             const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '© OpenStreetMap'
             });
 
-            // 2. แผนที่ดาวเทียม (Esri World Imagery)
             const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 maxZoom: 19,
                 attribution: 'Tiles © Esri'
             });
 
-            // 3. แผนที่ภูมิประเทศ (OpenTopoMap)
             const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
                 maxZoom: 17,
                 attribution: '© OpenTopoMap'
             });
 
-            // สร้างแผนที่โดยตั้งต้นด้วยแผนที่ปกติ
             map = L.map('map', {
                 center: [14.07, 101.58],
                 zoom: 14,
-                layers: [osmLayer] // ค่าเริ่มต้น
+                layers: [osmLayer]
             });
 
-            // รวม Layer ทั้งหมดใส่เมนูกดสลับมุมมองที่มุมขวาบน
             const baseMaps = {
                 "🗺️ แผนที่ถนนปกติ (Standard)": osmLayer,
                 "🛰️ ภาพถ่ายดาวเทียม (Satellite)": satelliteLayer,
