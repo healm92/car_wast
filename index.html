@@ -14,7 +14,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
-        #map { height: 400px; width: 100%; z-index: 10; }
+        #map { height: 450px; width: 100%; z-index: 10; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800">
@@ -29,7 +29,6 @@
                 <span class="text-xs text-emerald-200">องค์การบริหารส่วนตำบลเมืองเก่า</span>
             </div>
         </div>
-        <!-- แสดงปุ่ม Logout บน Navbar ตลอดเมื่อเข้าสู่ระบบแล้ว -->
         <div id="nav-user-info" class="flex items-center space-x-4 text-sm">
             <span id="nav-driver-display" class="bg-emerald-700 px-3 py-1 rounded-full text-xs">ผู้ใช้งานระบบ</span>
             <button onclick="logoutSystem()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded transition text-white text-xs shadow">
@@ -82,7 +81,6 @@
                 </button>
             </form>
 
-            <!-- เพิ่มปุ่มออกจากระบบสำรองไว้ในกล่องเลือกรถ -->
             <div class="mt-4 pt-4 border-t text-center">
                 <button onclick="logoutSystem()" class="text-red-500 hover:text-red-700 text-xs font-semibold">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i> กลับไปหน้าเข้าสู่ระบบ / สลับบัญชี
@@ -107,7 +105,7 @@
                 </div>
             </div>
 
-            <!-- แผนที่ -->
+            <!-- แผนที่พร้อมปุ่มเปลี่ยนมุมมองดาวเทียม/แผนที่ปกติ -->
             <div class="bg-white p-4 rounded-xl shadow">
                 <div class="flex justify-between items-center mb-2">
                     <h4 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-map-location-dot"></i> แผนที่เส้นทางและบ้านเรือน</h4>
@@ -255,7 +253,7 @@
 
             if (viewName === 'login') {
                 document.getElementById('view-login').classList.remove('hidden');
-                navUserInfo.classList.add('hidden'); // ซ่อนเมนูด้านบนตอนอยู่หน้า Login
+                navUserInfo.classList.add('hidden');
             } else if (viewName === 'select-vehicle') {
                 document.getElementById('view-select-vehicle').classList.remove('hidden');
                 navUserInfo.classList.remove('hidden');
@@ -405,8 +403,42 @@
 
         function initMap() {
             if (map) { map.remove(); map = null; }
-            map = L.map('map').setView([14.07, 101.58], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+            // 🗺️ กำหนด Layer แผนที่รูปแบบต่างๆ (เหมือน Google Maps)
+            // 1. แผนที่ถนนปกติ (OpenStreetMap)
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            });
+
+            // 2. แผนที่ดาวเทียม (Esri World Imagery)
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: 'Tiles © Esri'
+            });
+
+            // 3. แผนที่ภูมิประเทศ (OpenTopoMap)
+            const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: '© OpenTopoMap'
+            });
+
+            // สร้างแผนที่โดยตั้งต้นด้วยแผนที่ปกติ
+            map = L.map('map', {
+                center: [14.07, 101.58],
+                zoom: 14,
+                layers: [osmLayer] // ค่าเริ่มต้น
+            });
+
+            // รวม Layer ทั้งหมดใส่เมนูกดสลับมุมมองที่มุมขวาบน
+            const baseMaps = {
+                "🗺️ แผนที่ถนนปกติ (Standard)": osmLayer,
+                "🛰️ ภาพถ่ายดาวเทียม (Satellite)": satelliteLayer,
+                "⛰️ ภูมิประเทศ (Terrain)": topoLayer
+            };
+
+            L.control.layers(baseMaps).addTo(map);
+
             loadHouseMarkers();
         }
 
