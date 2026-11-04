@@ -262,13 +262,15 @@
             }
         }
 
-        // ----------------- AUTHENTICATION (Fixed Login & 401) -----------------
+        // ----------------- AUTHENTICATION (Fixed Schema) -----------------
         async function handleLogin(event) {
             event.preventDefault();
             const u = document.getElementById('login-user').value.trim();
             const p = document.getElementById('login-pass').value.trim();
 
+            // 🔍 บังคับระบุ schema('carwast') เพื่อให้เรียกตารางใน schema นี้โดยตรง
             const { data: user, error } = await _supabase
+                .schema('carwast')
                 .from('users')
                 .select('*')
                 .eq('username', u)
@@ -293,7 +295,6 @@
                 switchView('select-vehicle');
             }
         }
-
         async function loadVehicleDropdown() {
             const select = document.getElementById('select-plate');
             select.innerHTML = '<option value="">-- กรุณาเลือกทะเบียนรถ --</option>';
