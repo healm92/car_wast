@@ -206,8 +206,8 @@
         // ==========================================
         // 🔑 ตั้งค่าการเชื่อมต่อ Supabase (Schema carwast)
         // ==========================================
-        const SUPABASE_URL = "https://pdoojfiwedjbrjvjtqth.supabase.co";       // แทนที่ด้วย Project URL ของคุณ
-        const SUPABASE_ANON_KEY = "sb_publishable__0KAOXCyM13SpC6S9DpfOw_ZKHUF4jd"; // แทนที่ด้วย Anon Key ของคุณ
+        const SUPABASE_URL = "https://pdoojfiwedjbrjvjtqth.supabase.co";       
+        const SUPABASE_ANON_KEY = "sb_publishable__0KAOXCyM13SpC6S9DpfOw_ZKHUF4jd"; 
 
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             db: { schema: 'carwast' }
@@ -262,21 +262,27 @@
             }
         }
 
-        // ----------------- AUTHENTICATION -----------------
+        // ----------------- AUTHENTICATION (Fixed Error 401) -----------------
         async function handleLogin(event) {
             event.preventDefault();
             const u = document.getElementById('login-user').value.trim();
             const p = document.getElementById('login-pass').value.trim();
 
+            // ดึงข้อมูลผู้ใช้เฉพาะชื่อผู้ใช้งาน เพื่อป้องกัน Error 401 จากการ query รหัสผ่านผ่าน URL
             const { data: user, error } = await _supabase
                 .from('users')
                 .select('*')
                 .eq('username', u)
-                .eq('password', p)
-                .single();
+                .maybeSingle();
 
             if (error || !user) {
-                alert("ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง!");
+                alert("ชื่อผู้ใช้งานไม่ถูกต้อง!");
+                return;
+            }
+
+            // ตรวจสอบรหัสผ่านฝั่ง JavaScript
+            if (user.password !== p) {
+                alert("รหัสผ่านไม่ถูกต้อง!");
                 return;
             }
 
