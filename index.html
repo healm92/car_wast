@@ -262,13 +262,12 @@
             }
         }
 
-        // ----------------- AUTHENTICATION (Fixed Error 401) -----------------
+        // ----------------- AUTHENTICATION (Fixed Login & 401) -----------------
         async function handleLogin(event) {
             event.preventDefault();
             const u = document.getElementById('login-user').value.trim();
             const p = document.getElementById('login-pass').value.trim();
 
-            // ดึงข้อมูลผู้ใช้เฉพาะชื่อผู้ใช้งาน เพื่อป้องกัน Error 401 จากการ query รหัสผ่านผ่าน URL
             const { data: user, error } = await _supabase
                 .from('users')
                 .select('*')
@@ -276,12 +275,11 @@
                 .maybeSingle();
 
             if (error || !user) {
-                alert("ชื่อผู้ใช้งานไม่ถูกต้อง!");
+                alert("ไม่พบชื่อผู้ใช้งานนี้ในระบบ!");
                 return;
             }
 
-            // ตรวจสอบรหัสผ่านฝั่ง JavaScript
-            if (user.password !== p) {
+            if (String(user.password || "").trim() !== p) {
                 alert("รหัสผ่านไม่ถูกต้อง!");
                 return;
             }
@@ -300,7 +298,7 @@
             const select = document.getElementById('select-plate');
             select.innerHTML = '<option value="">-- กรุณาเลือกทะเบียนรถ --</option>';
             
-            const { data: vehicles } = await _supabase.from('carwast').select('*');
+            const { data: vehicles } = await _supabase.from('vehicles').select('*');
             const { data: activeRuns } = await _supabase.from('collection_runs').select('*').is('end_time', null);
             const activePlates = (activeRuns || []).map(r => r.vehicle_plate);
 
@@ -485,7 +483,7 @@
         async function addVehicle(e) {
             e.preventDefault();
             const plate = document.getElementById('new-plate').value;
-            const { error } = await _supabase.from('carwast').insert([{ plate_no: plate, vehicle_type: 'รถขยะ' }]);
+            const { error } = await _supabase.from('vehicles').insert([{ plate_no: plate, vehicle_type: 'รถขยะ' }]);
             if (error) { alert("เพิ่มไม่สำเร็จ (อาจมีป้ายทะเบียนนี้อยู่แล้ว)"); return; }
             document.getElementById('new-plate').value = '';
             loadAdminVehicles();
@@ -494,7 +492,7 @@
         async function loadAdminVehicles() {
             const container = document.getElementById('vehicle-list-admin');
             container.innerHTML = '';
-            const { data: vehicles } = await _supabase.from('carwast').select('*');
+            const { data: vehicles } = await _supabase.from('vehicles').select('*');
             (vehicles || []).forEach(v => {
                 const div = document.createElement('div');
                 div.className = "flex justify-between items-center bg-gray-50 p-2 rounded border";
@@ -504,7 +502,7 @@
         }
 
         async function deleteVehicle(id) {
-            await _supabase.from('carwast').delete().eq('id', id);
+            await _supabase.from('vehicles').delete().eq('id', id);
             loadAdminVehicles();
         }
 
