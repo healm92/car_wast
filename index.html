@@ -73,7 +73,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">ทะเบียนรถ (ที่ว่างอยู่)</label>
                     <select id="select-plate" required class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 text-sm">
-                        <option value="">-- กรุณาเลือกทะเบียนรถ --</option>
+                        <option value="">-- กำลังโหลดข้อมูลรถ --</option>
                     </select>
                 </div>
                 <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-semibold shadow transition text-sm">
@@ -228,7 +228,6 @@
                 if (currentSession.role === 'admin') {
                     switchView('admin');
                 } else if (currentSession.role === 'driver') {
-                    // ตรวจสอบว่ายังมีรอบงานค้างอยู่จริงหรือไม่ในฐานข้อมูล
                     const { data: activeRun } = await _supabase
                         .from('collection_runs')
                         .select('*')
@@ -320,7 +319,6 @@
                 localStorage.setItem('carwast_session', JSON.stringify(currentSession));
                 switchView('admin');
             } else {
-                // เช็คว่าคนขับคนนี้มีรอบงานที่ค้างอยู่หรือไม่
                 const { data: activeRun } = await _supabase
                     .from('collection_runs')
                     .select('*')
@@ -343,19 +341,26 @@
 
         async function loadVehicleDropdown() {
             const select = document.getElementById('select-plate');
-            select.innerHTML = '<option value="">-- กรุณาเลือกทะเบียนรถ --</option>';
+            select.innerHTML = '<option value="">-- กำลังโหลดข้อมูลรถ --</option>';
             
-            const { data: vehicles } = await _supabase.from('vehicles').select('*');
-            const { data: activeRuns } = await _supabase.from('collection_runs').select('*').is('end_time', null);
+            const { data: vehicles, error: vError } = await _supabase.from('vehicles').select('*');
+            const { data: activeRuns, error: rError } = await _supabase.from('collection_runs').select('*').is('end_time', null);
+
+            if (vError) {
+                console.error("Error loading vehicles:", vError);
+                select.innerHTML = '<option value="">-- ไม่สามารถโหลดข้อมูลรถได้ --</option>';
+                return;
+            }
+
+            select.innerHTML = '<option value="">-- กรุณาเลือกทะเบียนรถ --</option>';
             const activePlates = (activeRuns || []).map(r => r.vehicle_plate);
 
             (vehicles || []).forEach(v => {
-                if (!activePlates.includes(v.plate_no)) {
-                    const opt = document.createElement('option');
-                    opt.value = v.plate_no;
-                    opt.textContent = `${v.plate_no} (${v.vehicle_type || 'รถขยะ'})`;
-                    select.appendChild(opt);
-                }
+                // ป้องกันกรณีรถติดค้างรอบเก่า ให้แสดงขึ้นมาเลือกได้ปกติ
+                const opt = document.createElement('option');
+                opt.value = v.plate_no;
+                opt.textContent = `${v.plate_no} (${v.vehicle_type || 'รถขยะ'}) ${activePlates.includes(v.plate_no) ? '[กำลังใช้งาน]' : ''}`;
+                select.appendChild(opt);
             });
         }
 
@@ -384,7 +389,6 @@
         }
 
         async function logoutSystem() {
-            // ปล. กดออกจากระบบเฉยๆ จะไม่ปิดรอบงาน (เพื่อให้กดเข้ามาทำต่อได้) แต่ถ้ากด "จบงานวันนี้" ถึงจะปิดรอบ
             currentSession = null;
             localStorage.removeItem('carwast_session');
             if (watchId) navigator.geolocation.clearWatch(watchId);
