@@ -1,0 +1,59 @@
+-- 1. สร้าง Schema carwast (ถ้ายังไม่มี)
+CREATE SCHEMA IF NOT EXISTS carwast;
+
+-- 2. ตารางข้อมูลรถขยะ (carwast)
+CREATE TABLE IF NOT EXISTS carwast.carwast (
+    id SERIAL PRIMARY KEY,
+    plate_no VARCHAR(50) NOT NULL UNIQUE,      -- ป้ายทะเบียนรถ
+    vehicle_type VARCHAR(100),                 -- ประเภทรถ (เช่น รถอัดขยะ 6 ล้อ, รถกระบะ)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. ตารางผู้ใช้งานระบบ (users) - ไม่ล็อกป้ายรถประจำตัวแล้ว
+CREATE TABLE IF NOT EXISTS carwast.users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,     -- ชื่อผู้ใช้งาน
+    password VARCHAR(100) NOT NULL,           -- รหัสผ่าน
+    full_name VARCHAR(100) NOT NULL,          -- ชื่อ-นามสกุล
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'driver')) -- สิทธิ์: 'admin' หรือ 'driver'
+);
+
+-- เพิ่มข้อมูลตัวอย่าง (Admin 1 คน, คนขับ 3 คนที่สามารถสลับรถขับได้)
+INSERT INTO carwast.users (username, password, full_name, role) VALUES
+('admin01', '1234', 'เจ้าหน้าที่ อบต. (ผู้ดูแลระบบ)', 'admin'),
+('driver01', '1234', 'นายสมชาย ขยันเก็บ', 'driver'),
+('driver02', '1234', 'นายสมศักดิ์ รักงาน', 'driver'),
+('driver03', '1234', 'นาย 	วีระ ตั้งใจ', 'driver')
+ON CONFLICT (username) DO NOTHING;
+
+-- 4. ตารางจุดเก็บขยะ / บ้านเรือน (houses)
+CREATE TABLE IF NOT EXISTS carwast.houses (
+    id SERIAL PRIMARY KEY,
+    house_no VARCHAR(50) NOT NULL,
+    moo VARCHAR(20) NOT NULL,
+    owner VARCHAR(100),
+    bin_count INTEGER DEFAULT 1,
+    latitude NUMERIC(10, 8) NOT NULL,
+    longitude NUMERIC(11, 8) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 5. ตารางบันทึกการออกปฏิบัติงานรอบเก็บขยะ (collection_runs)
+CREATE TABLE IF NOT EXISTS carwast.collection_runs (
+    id SERIAL PRIMARY KEY,
+    driver_name VARCHAR(100) NOT NULL,         -- ชื่อคนขับที่ล็อกอิน
+    vehicle_plate VARCHAR(50) NOT NULL,        -- ทะเบียนรถที่เลือกใช้ในรอบนี้ (สลับเปลี่ยนได้)
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    end_time TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(20) DEFAULT 'in_progress'
+);
+
+-- 6. ตารางบันทึกสถานะการเก็บขยะ (collection_logs)
+CREATE TABLE IF NOT EXISTS carwast.collection_logs (
+    id SERIAL PRIMARY KEY,
+    run_id INTEGER REFERENCES carwast.collection_runs(id) ON DELETE CASCADE,
+    house_id INTEGER REFERENCES carwast.houses(id) ON DELETE CASCADE,
+    collected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    status VARCHAR(20) DEFAULT 'collected',
+    remark TEXT
+);
