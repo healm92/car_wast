@@ -95,7 +95,7 @@
                     <p class="text-[11px] text-gray-500">GPS: <span id="gps-status" class="text-orange-500 font-semibold">กำลังค้นหา...</span></p>
                 </div>
                 <div class="flex gap-1.5">
-                    <button onclick="simulateAdminOverride()" class="bg-amber-500 hover:bg-amber-600  text-white px-2.5 py-1.5 rounded-lg text-xs shadow" title="บันทึกจากสำนักงาน">
+                    <button onclick="simulateAdminOverride()" class="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded-lg text-xs shadow" title="บันทึกจากสำนักงาน">
                         <i class="fa-solid fa-building-columns"></i>
                     </button>
                     <button onclick="finishDuty()" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-xs shadow" title="จบงานวันนี้">
@@ -166,11 +166,11 @@
                 </div>
             </div>
 
-            <!-- แผนที่ติดตามรถทุกคันแบบ Realtime สำหรับ Admin -->
+            <!-- แผนที่ติดตามรถทุกคันแบบ Realtime และบ้านเลขที่สำหรับ Admin -->
             <div class="bg-white p-4 rounded-xl shadow space-y-2">
                 <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-satellite-dish text-blue-600"></i> ติดตามตำแหน่งรถขยะทุกคันแบบ Real-time</h3>
-                    <span id="active-trucks-count" class="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-semibold">กำลังโหลดรถที่ปฏิบัติงาน...</span>
+                    <h3 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-satellite-dish text-blue-600"></i> ติดตามรถและสถานะบ้านแบบ Real-time</h3>
+                    <span id="active-trucks-count" class="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-semibold">กำลังโหลดรถ...</span>
                 </div>
                 <div id="admin-map" class="rounded-lg shadow-inner h-[400px] w-full z-10"></div>
             </div>
@@ -215,29 +215,32 @@
                 </div>
             </div>
 
-            <!-- รายงานประจำเดือน -->
+            <!-- 🌟 ระบบออกรายงานเชิงวิชาการและการปฏิบัติงานประจำวัน/ประจำเดือน -->
             <div class="bg-white p-4 rounded-xl shadow space-y-4">
-                <h3 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-chart-pie"></i> รายงานสถานะการเก็บขยะประจำเดือน</h3>
+                <h3 class="font-bold text-gray-700 text-sm border-b pb-2"><i class="fa-solid fa-file-lines text-emerald-600"></i> ออกรายงานสรุปผลการปฏิบัติงานเก็บขยะมูลฝอย</h3>
                 <div class="flex flex-wrap gap-3 items-end">
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">เลือกเดือน</label>
-                        <input type="month" id="report-month" class="border rounded px-3 py-1.5 text-xs">
+                        <label class="block text-xs text-gray-500 mb-1">เลือกวันที่เริ่มต้น</label>
+                        <input type="date" id="report-start-date" class="border rounded px-3 py-1.5 text-xs">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">เลือกหมู่บ้าน</label>
-                        <select id="report-moo-filter" class="border rounded px-3 py-1.5 text-xs">
-                            <option value="">ทุกหมู่บ้าน</option>
-                        </select>
+                        <label class="block text-xs text-gray-500 mb-1">เลือกวันที่สิ้นสุด</label>
+                        <input type="date" id="report-end-date" class="border rounded px-3 py-1.5 text-xs">
                     </div>
-                    <button onclick="generateReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-xs shadow">
-                        <i class="fa-solid fa-magnifying-glass"></i> ค้นหา
+                    <button onclick="generateAdvancedReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-xs shadow">
+                        <i class="fa-solid fa-magnifying-glass"></i> ประมวลผลรายงาน
                     </button>
-                    <button onclick="exportReportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded text-xs shadow">
+                    <button onclick="window.print()" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-1.5 rounded text-xs shadow">
+                        <i class="fa-solid fa-print"></i> พิมพ์รายงาน
+                    </button>
+                    <button onclick="exportAdvancedReportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded text-xs shadow">
                         <i class="fa-solid fa-file-excel"></i> ส่งออก Excel
                     </button>
                 </div>
-                <div id="report-result-container" class="overflow-x-auto text-xs">
-                    <p class="text-gray-400 text-center py-4">กรุณากดปุ่ม "ค้นหา" เพื่อดูรายงาน</p>
+
+                <!-- ส่วนแสดงผลข้อความรายงานเชิงวิชาการ และตารางสรุป -->
+                <div id="academic-report-container" class="space-y-3 pt-2">
+                    <p class="text-gray-400 text-center py-4">กรุณากำหนดช่วงวันที่และกด "ประมวลผลรายงาน"</p>
                 </div>
             </div>
         </div>
@@ -257,13 +260,13 @@
         let currentSession = JSON.parse(localStorage.getItem('carwast_session')) || null;
         let driverMap = null, adminMap = null;
         let markerUser = null, driverHouseMarkers = [], adminHouseMarkers = [];
-        let adminTruckMarkers = {}; // เก็บหมุดรถของ Admin แต่ละคัน
+        let adminTruckMarkers = {}; 
         let watchId = null, isFollowingGPS = true, isFirstGPSCenter = true;
         let allAdminHousesData = [];
         let adminLiveInterval = null;
 
         window.onload = async function() {
-            initMonthSelector();
+            initReportDates();
             if (currentSession) {
                 if (currentSession.role === 'admin') {
                     switchView('admin');
@@ -294,9 +297,10 @@
             }
         };
 
-        function initMonthSelector() {
-            const now = new Date();
-            document.getElementById('report-month').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        function initReportDates() {
+            const today = new Date().toISOString().slice(0, 10);
+            document.getElementById('report-start-date').value = today;
+            document.getElementById('report-end-date').value = today;
         }
 
         function switchView(viewName) {
@@ -304,7 +308,6 @@
                 document.getElementById(`view-${v}`).classList.add('hidden');
             });
             
-            // เคลียร์ interval ของ admin เมื่อเปลี่ยนหน้า
             if (adminLiveInterval) { clearInterval(adminLiveInterval); adminLiveInterval = null; }
 
             const navUserInfo = document.getElementById('nav-user-info');
@@ -334,11 +337,9 @@
                 driverDisplay.innerText = `${currentSession.fullName} (Admin)`;
                 loadAdminVehicles();
                 loadAdminHousesTable();
-                loadReportMooFilter();
                 setTimeout(() => { 
                     initAdminMap(); 
                     loadAllActiveTrucks(); 
-                    // รีเฟรชตำแหน่งรถทุกๆ 8 วินาทีแบบ Real-time
                     adminLiveInterval = setInterval(loadAllActiveTrucks, 8000);
                 }, 200);
             }
@@ -458,7 +459,6 @@
             }
         }
 
-        // ----------------- DRIVER & GPS NAVIGATION -----------------
         function startDriverWorkspace() {
             document.getElementById('driver-status-title').innerText = `คนขับ: ${currentSession.fullName} | รถ: ${currentSession.plate}`;
             loadDriverMooFilter();
@@ -502,7 +502,6 @@
                     
                     updateUserMapMarker(lat, lng);
 
-                    // อัปเดตพิกัดปัจจุบันขึ้นฐานข้อมูล เพื่อให้ Admin เห็นแบบ Realtime
                     if (currentSession && currentSession.runId) {
                         _supabase.from('collection_runs').update({
                             current_lat: lat,
@@ -563,18 +562,23 @@
 
             (houses || []).forEach(h => {
                 const collected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
-                const color = collected ? '#10b981' : '#ef4444'; 
+                const bgColor = collected ? '#10b981' : '#ef4444'; 
+                
+                const htmlBadge = `<div style="background:${bgColor}; color:white; width:32px; height:32px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${h.house_no}</div>`;
+                
                 const icon = L.divIcon({ 
-                    html: `<div style="background:${color}; width:14px; height:14px; border-radius:50%; border:2px solid white; box-shadow:0 0 4px rgba(0,0,0,0.6);"></div>`, 
-                    className: '' 
+                    html: htmlBadge, 
+                    className: '',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
                 });
+
                 const marker = L.marker([h.latitude, h.longitude], { icon }).addTo(targetMap);
                 marker.bindPopup(`<b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>เจ้าของ: ${h.owner || '-'}<br>สถานะวันนี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}`);
                 markerArray.push(marker);
             });
         }
 
-        // โหลดตำแหน่งรถทุกคันแบบ Real-time สำหรับ Admin
         async function loadAllActiveTrucks() {
             if (!adminMap) return;
             const countBadge = document.getElementById('active-trucks-count');
@@ -586,7 +590,6 @@
 
             if (error || !runs || runs.length === 0) {
                 countBadge.innerText = 'ไม่มีรถปฏิบัติงานอยู่ขณะนี้ (0 คัน)';
-                // ลบหมุดรถเก่าออกถ้าไม่มีรถวิ่ง
                 Object.values(adminTruckMarkers).forEach(m => adminMap.removeLayer(m));
                 adminTruckMarkers = {};
                 return;
@@ -595,7 +598,6 @@
             countBadge.innerText = `กำลังปฏิบัติงานอยู่ ${runs.length} คัน`;
             const activeRunIds = runs.map(r => r.id);
 
-            // ลบหมุดรถที่จบงานไปแล้ว
             Object.keys(adminTruckMarkers).forEach(id => {
                 if (!activeRunIds.includes(Number(id))) {
                     adminMap.removeLayer(adminTruckMarkers[id]);
@@ -604,7 +606,6 @@
             });
 
             runs.forEach(r => {
-                // ถ้ามีพิกัด current_lat และ current_lng
                 if (r.current_lat && r.current_lng) {
                     const latLng = [r.current_lat, r.current_lng];
                     const popupText = `<b>🚛 รถขยะ: ${r.vehicle_plate}</b><br>คนขับ: ${r.driver_name}<br>สถานะ: กำลังปฏิบัติงาน`;
@@ -614,8 +615,10 @@
                         adminTruckMarkers[r.id].getPopup().setContent(popupText);
                     } else {
                         const icon = L.divIcon({ 
-                            html: '<div style="background:#3b82f6; width:26px; height:26px; border-radius:50%; border:3px solid white; box-shadow:0 0 8px rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-truck text-white text-[11px]"></i></div>', 
-                            className: '' 
+                            html: '<div style="background:#3b82f6; width:28px; height:28px; border-radius:50%; border:3px solid white; box-shadow:0 0 8px rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-truck text-white text-[11px] animate-pulse"></i></div>', 
+                            className: '',
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
                         });
                         const marker = L.marker(latLng, { icon }).addTo(adminMap).bindPopup(popupText);
                         adminTruckMarkers[r.id] = marker;
@@ -631,8 +634,10 @@
                 markerUser.setLatLng([lat, lng]);
             } else {
                 const icon = L.divIcon({ 
-                    html: '<div style="background:#3b82f6; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 6px rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-truck text-white text-[10px]"></i></div>', 
-                    className: '' 
+                    html: '<div style="background:#3b82f6; width:28px; height:28px; border-radius:50%; border:3px solid white; box-shadow:0 0 8px rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-truck text-white text-[11px]"></i></div>', 
+                    className: '',
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
                 });
                 markerUser = L.marker([lat, lng], { icon }).addTo(driverMap).bindPopup("ตำแหน่งรถของคุณ");
             }
@@ -719,14 +724,9 @@
             (vehicles || []).forEach(v => {
                 const div = document.createElement('div');
                 div.className = "flex justify-between items-center bg-gray-50 p-2 rounded border";
-                div.innerHTML = `<span>${v.plate_no} (${v.vehicle_type})</span> <button onclick="deleteVehicle(${v.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>`;
+                div.innerHTML = `<span>${v.plate_no} (${v.vehicle_type})</span>`;
                 container.appendChild(div);
             });
-        }
-
-        async function deleteVehicle(id) {
-            await _supabase.from('vehicles').delete().eq('id', id);
-            loadAdminVehicles();
         }
 
         async function saveHouse(e) {
@@ -742,39 +742,14 @@
             };
 
             if (id) {
-                const { error } = await _supabase.from('houses').update(payload).eq('id', id);
-                if (error) alert("แก้ไขไม่สำเร็จ: " + error.message);
-                else alert("อัปเดตข้อมูลบ้านสำเร็จ!");
+                await _supabase.from('houses').update(payload).eq('id', id);
             } else {
-                const { error } = await _supabase.from('houses').insert([payload]);
-                if (error) alert("เพิ่มไม่สำเร็จ: " + error.message);
-                else alert("เพิ่มจุดเก็บขยะสำเร็จ!");
+                await _supabase.from('houses').insert([payload]);
             }
 
             resetHouseForm();
             loadAdminHousesTable();
-            loadReportMooFilter();
             if (adminMap) loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
-        }
-
-        function editHouse(id) {
-            const house = allAdminHousesData.find(h => h.id === id);
-            if (!house) return;
-
-            document.getElementById('h-id').value = house.id;
-            document.getElementById('h-no').value = house.house_no;
-            document.getElementById('h-moo').value = house.moo;
-            document.getElementById('h-owner').value = house.owner || '';
-            document.getElementById('h-bin').value = house.bin_count;
-            document.getElementById('h-lat').value = house.latitude;
-            document.getElementById('h-lng').value = house.longitude;
-
-            document.getElementById('form-house-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-500"></i> แก้ไขข้อมูลจุดเก็บขยะ (ID: ${house.id})`;
-            document.getElementById('btn-submit-house').innerText = 'บันทึกการแก้ไข';
-            document.getElementById('btn-submit-house').className = 'flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded text-xs font-semibold shadow';
-            document.getElementById('btn-cancel-edit').classList.remove('hidden');
-
-            document.getElementById('house-form').scrollIntoView({ behavior: 'smooth' });
         }
 
         function resetHouseForm() {
@@ -789,16 +764,13 @@
         async function loadAdminHousesTable() {
             const container = document.getElementById('admin-house-list-container');
             const countBadge = document.getElementById('total-houses-count');
-            container.innerHTML = '<p class="text-gray-400 text-center py-2">กำลังโหลด...</p>';
-
-            const { data: houses, error } = await _supabase.from('houses').select('*').order('id', { ascending: false });
-            if (error || !houses || houses.length === 0) {
+            const { data: houses } = await _supabase.from('houses').select('*').order('id', { ascending: false });
+            if (!houses || houses.length === 0) {
                 container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีข้อมูลจุดเก็บขยะในระบบ</p>';
                 countBadge.innerText = '0 หลัง';
                 allAdminHousesData = [];
                 return;
             }
-
             allAdminHousesData = houses;
             countBadge.innerText = `${houses.length} หลัง`;
             renderAdminHousesTable(houses);
@@ -806,29 +778,18 @@
 
         function filterAdminHousesTable() {
             const term = document.getElementById('admin-search-input').value.toLowerCase().trim();
-            if (!term) {
-                renderAdminHousesTable(allAdminHousesData);
-                return;
-            }
-
+            if (!term) { renderAdminHousesTable(allAdminHousesData); return; }
             const filtered = allAdminHousesData.filter(h => 
                 String(h.house_no || '').toLowerCase().includes(term) ||
                 String(h.moo || '').toLowerCase().includes(term) ||
                 String(h.owner || '').toLowerCase().includes(term)
             );
-
             renderAdminHousesTable(filtered);
         }
 
         function renderAdminHousesTable(houses) {
             const container = document.getElementById('admin-house-list-container');
-            if (houses.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลที่ตรงกับคำค้นหา</p>';
-                return;
-            }
-
             let html = `<table class="w-full text-left border-collapse"><thead><tr class="bg-gray-100 border text-[11px]"><th class="p-2 border">หมู่บ้าน</th><th class="p-2 border">บ้านเลขที่</th><th class="p-2 border">เจ้าของ</th><th class="p-2 border text-center">ถัง</th><th class="p-2 border text-center">จัดการ</th></tr></thead><tbody>`;
-
             houses.forEach(h => {
                 html += `<tr class="border hover:bg-gray-50">
                     <td class="p-2 border">${h.moo}</td>
@@ -836,21 +797,36 @@
                     <td class="p-2 border">${h.owner || '-'}</td>
                     <td class="p-2 border text-center">${h.bin_count}</td>
                     <td class="p-2 border text-center space-x-1">
-                        <button onclick="editHouse(${h.id})" class="bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded text-xs"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
-                        <button onclick="deleteHouse(${h.id})" class="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="editHouse(${h.id})" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
+                        <button onclick="deleteHouse(${h.id})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>`;
             });
-
             html += `</tbody></table>`;
             container.innerHTML = html;
+        }
+
+        function editHouse(id) {
+            const house = allAdminHousesData.find(h => h.id === id);
+            if (!house) return;
+            document.getElementById('h-id').value = house.id;
+            document.getElementById('h-no').value = house.house_no;
+            document.getElementById('h-moo').value = house.moo;
+            document.getElementById('h-owner').value = house.owner || '';
+            document.getElementById('h-bin').value = house.bin_count;
+            document.getElementById('h-lat').value = house.latitude;
+            document.getElementById('h-lng').value = house.longitude;
+            document.getElementById('form-house-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-500"></i> แก้ไขข้อมูลจุดเก็บขยะ`;
+            document.getElementById('btn-submit-house').innerText = 'บันทึกการแก้ไข';
+            document.getElementById('btn-submit-house').className = 'flex-1 bg-amber-500 text-white py-2 rounded text-xs font-semibold shadow';
+            document.getElementById('btn-cancel-edit').classList.remove('hidden');
+            document.getElementById('house-form').scrollIntoView({ behavior: 'smooth' });
         }
 
         async function deleteHouse(id) {
             if (confirm('คุณต้องการลบจุดเก็บขยะนี้ใช่หรือไม่?')) {
                 await _supabase.from('houses').delete().eq('id', id);
                 loadAdminHousesTable();
-                loadReportMooFilter();
                 if (adminMap) loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
             }
         }
@@ -880,76 +856,110 @@
                     latitude: Number(r.latitude),
                     longitude: Number(r.longitude)
                 }));
-                const { error } = await _supabase.from('houses').insert(payload);
-                if (error) {
-                    alert("เกิดข้อผิดพลาดในการนำเข้าข้อมูล: " + error.message);
-                } else {
-                    alert(`นำเข้าสำเร็จ ${payload.length} รายการ`);
-                    loadAdminHousesTable();
-                    loadReportMooFilter();
-                    if (adminMap) loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
-                }
+                await _supabase.from('houses').insert(payload);
+                alert(`นำเข้าสำเร็จ ${payload.length} รายการ`);
+                loadAdminHousesTable();
+                if (adminMap) loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
             };
             reader.readAsArrayBuffer(file);
         }
 
-        async function loadReportMooFilter() {
-            const select = document.getElementById('report-moo-filter');
-            const { data: houses } = await _supabase.from('houses').select('moo');
-            const moos = [...new Set((houses || []).map(h => h.moo))];
-            select.innerHTML = '<option value="">ทุกหมู่บ้าน</option>';
-            moos.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                opt.textContent = m;
-                select.appendChild(opt);
-            });
-        }
+        // 🌟 ฟังก์ชันประมวลผลและสร้างรายงานเชิงวิชาการ
+        async function generateAdvancedReport() {
+            const startDate = document.getElementById('report-start-date').value;
+            const endDate = document.getElementById('report-end-date').value;
+            const container = document.getElementById('academic-report-container');
 
-        async function generateReport() {
-            const monthStr = document.getElementById('report-month').value;
-            const mooFilter = document.getElementById('report-moo-filter').value;
-            const container = document.getElementById('report-result-container');
-            if (!monthStr) { alert("กรุณาเลือกเดือน"); return; }
-
-            const [year, month] = monthStr.split('-');
-            let query = _supabase.from('houses').select('*');
-            if (mooFilter) query = query.eq('moo', mooFilter);
-            const { data: houses, error: hError } = await query;
-            const { data: logs } = await _supabase.from('collection_logs').select('*');
-
-            if (hError || !houses || houses.length === 0) {
-                container.innerHTML = `<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลบ้านในระบบ</p>`;
+            if (!startDate || !endDate) {
+                alert("กรุณาเลือกช่วงวันที่เริ่มต้นและสิ้นสุด");
                 return;
             }
 
-            let collected = 0, pending = 0;
-            let html = `<div class="mb-2 font-semibold text-gray-700">เก็บแล้ว <span id="count-collected" class="text-emerald-600">0</span> หลัง | ยังไม่เก็บ <span id="count-pending" class="text-red-500">0</span> หลัง</div>`;
-            html += `<table class="w-full text-left border-collapse"><thead><tr class="bg-gray-200 border text-[11px]"><th class="p-2 border">หมู่บ้าน</th><th class="p-2 border">บ้านเลขที่</th><th class="p-2 border">เจ้าของ</th><th class="p-2 border">สถานะเดือน ${month}/${year}</th></tr></thead><tbody>`;
+            container.innerHTML = `<p class="text-gray-400 text-center py-4">กำลังประมวลผลข้อมูลรายงาน...</p>`;
 
-            houses.forEach(h => {
-                const log = (logs || []).find(l => {
-                    if (l.house_id !== h.id || l.status !== 'collected') return false;
-                    const d = new Date(l.collected_at);
-                    return d.getFullYear() == year && (d.getMonth() + 1) == month;
-                });
+            // ดึงข้อมูล collection_runs และ collection_logs ในช่วงวันที่เลือก
+            const { data: runs } = await _supabase.from('collection_runs').select('*');
+            const { data: logs } = await _supabase.from('collection_logs').select('*')
+                .gte('collected_at', startDate + 'T00:00:00')
+                .lte('collected_at', endDate + 'T23:59:59');
 
-                if (log) collected++; else pending++;
+            const { data: houses } = await _supabase.from('houses').select('*');
 
-                html += `<tr class="border hover:bg-gray-50"><td class="p-2 border">${h.moo}</td><td class="p-2 border font-semibold">${h.house_no}</td><td class="p-2 border">${h.owner || '-'}</td><td class="p-2 border font-semibold ${log ? 'text-emerald-600' : 'text-red-500'}">${log ? '✅ เก็บแล้ว' : '❌ ยังไม่เก็บ'}</td></tr>`;
+            if (!logs || logs.length === 0) {
+                container.innerHTML = `<div class="p-4 bg-yellow-50 text-yellow-800 rounded-lg text-center text-xs">ไม่พบข้อมูลการเก็บขยะในช่วงวันที่ ${startDate} ถึง ${endDate}</div>`;
+                return;
+            }
+
+            // จัดกลุ่มตามคนขับและทะเบียนรถ
+            let driverStats = {};
+            let totalBinsAll = 0;
+            let collectedMoosSet = new Set();
+
+            logs.forEach(l => {
+                const run = (runs || []).find(r => r.id === l.run_id) || { driver_name: 'ไม่ระบุคนขับ', vehicle_plate: 'ไม่ระบุทะเบียน' };
+                const house = (houses || []).find(h => h.id === l.house_id) || { moo: 'ไม่ระบุหมู่', bin_count: 1 };
+                
+                const key = `${run.vehicle_plate}_${run.driver_name}`;
+                if (!driverStats[key]) {
+                    driverStats[key] = {
+                        plate: run.vehicle_plate,
+                        driver: run.driver_name,
+                        bins: 0,
+                        housesCount: 0,
+                        moos: new Set()
+                    };
+                }
+
+                driverStats[key].bins += Number(house.bin_count || 1);
+                driverStats[key].housesCount += 1;
+                driverStats[key].moos.add(house.moo);
+                collectedMoosSet.add(house.moo);
+                totalBinsAll += Number(house.bin_count || 1);
             });
 
-            html += `</tbody></table>`;
-            container.innerHTML = html;
+            // สร้างข้อความรายงานเชิงวิชาการ
+            let academicText = `รายงานผลการดำเนินงานการจัดการและเก็บขนขยะมูลฝอย ประจำวันที่ ${startDate} ถึงวันที่ ${endDate} องค์การบริหารส่วนตำบลเมืองเก่า สรุปผลการปฏิบัติงานได้ดังนี้: <br><br>`;
+            
+            Object.values(driverStats).forEach(st => {
+                const mooArr = Array.from(st.moos).join(', ');
+                academicText += `• รถยนต์บรรทุกขยะ ป้ายทะเบียน <b>${st.plate}</b> โดย <b>${st.driver}</b> ได้ปฏิบัติภารกิจเก็บขยะมูลฝอย ครอบคลุมพื้นที่ <b>${mooArr}</b> รวมจำนวนบ้านเรือนที่ให้บริการ ${st.housesCount} หลังคาเรือน จัดเก็บขยะมูลฝอยได้ทั้งสิ้น <b>${st.bins} ถัง</b><br>`;
+            });
 
-            document.getElementById('count-collected').innerText = collected;
-            document.getElementById('count-pending').innerText = pending;
+            let html = `<div class="p-4 bg-emerald-50 border border-emerald-200 rounded-lg leading-relaxed text-xs text-emerald-900">${academicText}</div>`;
+
+            // สร้างตารางรายละเอียด
+            html += `<table id="report-table" class="w-full text-left border-collapse mt-3">
+                <thead>
+                    <tr class="bg-gray-200 border text-[11px]">
+                        <th class="p-2 border">ทะเบียนรถ</th>
+                        <th class="p-2 border">พนักงานขับรถ</th>
+                        <th class="p-2 border">หมู่บ้านที่ปฏิบัติงาน</th>
+                        <th class="p-2 border text-center">จำนวนบ้าน (หลัง)</th>
+                        <th class="p-2 border text-center">รวมจำนวนถัง (ถัง)</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            Object.values(driverStats).forEach(st => {
+                html += `<tr class="border hover:bg-gray-50">
+                    <td class="p-2 border font-semibold">${st.plate}</td>
+                    <td class="p-2 border">${st.driver}</td>
+                    <td class="p-2 border">${Array.from(st.moos).join(', ')}</td>
+                    <td class="p-2 border text-center">${st.housesCount}</td>
+                    <td class="p-2 border text-center font-bold text-emerald-700">${st.bins}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>
+            <div class="mt-2 text-right font-bold text-xs text-gray-700">รวมจำนวนถังขยะทั้งสิ้น: <span class="text-emerald-700 text-sm">${totalBinsAll}</span> ถัง</div>`;
+
+            container.innerHTML = html;
         }
 
-        function exportReportExcel() {
-            const table = document.querySelector('#report-result-container table');
-            if (!table) { alert("กรุณากดค้นหารายงานก่อน"); return; }
-            XLSX.writeFile(XLSX.utils.table_to_book(table, { sheet: "Report" }), `waste_report_${document.getElementById('report-month').value}.xlsx`);
+        function exportAdvancedReportExcel() {
+            const table = document.querySelector('#report-table');
+            if (!table) { alert("กรุณาประมวลผลรายงานก่อนส่งออก"); return; }
+            XLSX.writeFile(XLSX.utils.table_to_book(table, { sheet: "WasteReport" }), `waste_collection_report.xlsx`);
         }
     </script>
 </body>
