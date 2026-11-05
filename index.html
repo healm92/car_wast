@@ -61,8 +61,8 @@
             </div>
             <form onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้งาน (Username)</label>
-                    <input type="text" id="login-user" required class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="เช่น admin01 หรือ driver01">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">อีเมลผู้ใช้งาน (Email)</label>
+                    <input type="email" id="login-user" required class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="name@example.com">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน (Password)</label>
@@ -279,7 +279,11 @@
 
         window.onload = async function() {
             initReportDates();
-            if (currentSession) {
+            
+            // ตรวจสอบ Supabase Auth Session
+            const { data: { session } } = await _supabase.auth.getSession();
+
+            if (session && currentSession) {
                 if (currentSession.role === 'admin') {
                     switchView('admin');
                 } else if (currentSession.role === 'driver') {
@@ -305,7 +309,7 @@
                     }
                 }
             } else {
-                switchView('login');
+                logoutSystem();
             }
         };
 
@@ -359,48 +363,62 @@
 
         async function handleLogin(event) {
             event.preventDefault();
-            const u = document.getElementById('login-user').value.trim();
-            const p = document.getElementById('login-pass').value.trim();
+            const email = document.getElementById('login-user').value.trim();
+            const password = document.getElementById('login-pass').value.trim();
 
-            const { data: user, error } = await _supabase
-                .from('users')
-                .select('*')
-                .eq('username', u)
-                .maybeSingle();
+            try {
+                // 1. ล็อกอินผ่าน Supabase Auth
+                const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
 
-            if (error || !user) {
-                alert("ไม่พบชื่อผู้ใช้งานนี้ในระบบ!");
-                return;
-            }
+                if (authError) throw authError;
 
-            if (String(user.password || "").trim() !== p) {
-                alert("รหัสผ่านไม่ถูกต้อง!");
-                return;
-            }
-
-            currentSession = { username: user.username, fullName: user.full_name, role: user.role, plate: null, runId: null };
-            
-            if (user.role === 'admin') {
-                localStorage.setItem('carwast_session', JSON.stringify(currentSession));
-                switchView('admin');
-            } else {
-                const { data: activeRun } = await _supabase
-                    .from('collection_runs')
+                // 2. ดึงข้อมูลโปรไฟล์และ Role จากตาราง carwast.users โดยอิงจาก auth.uid()
+                const userId = authData.user.id;
+                const { data: userProfile, error: profileError } = await _supabase
+                    .from('users')
                     .select('*')
-                    .eq('driver_name', user.full_name)
-                    .is('end_time', null)
-                    .maybeSingle();
+                    .eq('id', userId)
+                    .single();
 
-                if (activeRun) {
-                    currentSession.plate = activeRun.vehicle_plate;
-                    currentSession.runId = activeRun.id;
-                    localStorage.setItem('carwast_session', JSON.stringify(currentSession));
-                    switchView('driver');
-                    startDriverWorkspace();
-                } else {
-                    localStorage.setItem('carwast_session', JSON.stringify(currentSession));
-                    switchView('select-vehicle');
+                if (profileError || !userProfile) {
+                    throw new Error("ไม่พบข้อมูลสิทธิ์ผู้ใช้งานในตาราง carwast.users");
                 }
+
+                currentSession = { 
+                    username: userProfile.username, 
+                    fullName: userProfile.full_name, 
+                    role: userProfile.role, 
+                    plate: null, 
+                    runId: null 
+                };
+                
+                if (userProfile.role === 'admin') {
+                    localStorage.setItem('carwast_session', JSON.stringify(currentSession));
+                    switchView('admin');
+                } else {
+                    const { data: activeRun } = await _supabase
+                        .from('collection_runs')
+                        .select('*')
+                        .eq('driver_name', userProfile.full_name)
+                        .is('end_time', null)
+                        .maybeSingle();
+
+                    if (activeRun) {
+                        currentSession.plate = activeRun.vehicle_plate;
+                        currentSession.runId = activeRun.id;
+                        localStorage.setItem('carwast_session', JSON.stringify(currentSession));
+                        switchView('driver');
+                        startDriverWorkspace();
+                    } else {
+                        localStorage.setItem('carwast_session', JSON.stringify(currentSession));
+                        switchView('select-vehicle');
+                    }
+                }
+            } catch (error) {
+                alert("เข้าสู่ระบบไม่สำเร็จ: " + error.message);
             }
         }
 
@@ -453,6 +471,7 @@
 
         async function logoutSystem() {
             if (adminLiveInterval) clearInterval(adminLiveInterval);
+            await _supabase.auth.signOut();
             currentSession = null;
             localStorage.removeItem('carwast_session');
             if (watchId) navigator.geolocation.clearWatch(watchId);
@@ -563,13 +582,11 @@
             loadAdminHouseMarkers();
         }
 
-        // 🌟 ตรวจสอบสถานะการเก็บของรอบสัปดาห์นี้ (เริ่มนับตั้งแต่วันจันทร์ หรือรีเซ็ตตามรอบที่ต้องการ)
         async function loadDriverHouseMarkers() {
             if (!driverMap) return;
             driverHouseMarkers.forEach(m => driverMap.removeLayer(m));
             driverHouseMarkers.length = 0;
 
-            // คำนวณหาวันจันทร์ของสัปดาห์นี้ เพื่อให้สถานะรีเซ็ตตามรอบสัปดาห์
             const now = new Date();
             const dayOfWeek = now.getDay();
             const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
