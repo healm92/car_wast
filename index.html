@@ -79,7 +79,7 @@
             <h2 class="text-xl font-bold text-emerald-700 mb-2 text-center">
                 <i class="fa-solid fa-truck"></i> เลือกรถขยะประจำรอบ
             </h2>
-            <p class="text-xs text-gray-500 text-center mb-6">เลือกทะเบียนรถที่ท่านใช้งานในวันนี้</p>
+            <p class="text-xs text-gray-500 text-center mb-6">เลือกทะเบียนรถที่ท่านใช้งานในวันนี้ (คันที่ถูกใช้งานอยู่จะไม่สามารถเลือกได้)</p>
             
             <form onsubmit="startDriverDuty(event)" class="space-y-4">
                 <div>
@@ -154,14 +154,23 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- จัดการรถ -->
+                <!-- จัดการรถ & จัดการสถานะรถวิ่งงาน (Force End Duty) -->
                 <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 text-sm border-b pb-2"><i class="fa-solid fa-truck"></i> จัดการทะเบียนรถขยะ</h3>
+                    <h3 class="font-bold text-gray-700 text-sm border-b pb-2"><i class="fa-solid fa-truck"></i> จัดการทะเบียนรถ & สถานะรอบวิ่ง</h3>
                     <form onsubmit="addVehicle(event)" class="flex gap-2">
                         <input type="text" id="new-plate" required placeholder="ป้ายทะเบียน (เช่น 80-1234)" class="border rounded px-3 py-1.5 flex-1 text-xs">
                         <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs shadow">เพิ่มรถ</button>
                     </form>
-                    <div id="vehicle-list-admin" class="max-h-40 overflow-y-auto text-xs space-y-1"></div>
+                    
+                    <!-- ส่วนแสดงรายการรถและปุ่มบังคับจบงานสำหรับ Admin -->
+                    <div class="pt-2">
+                        <p class="text-[11px] text-gray-500 mb-1 font-semibold">รถที่กำลังปฏิบัติงานอยู่ (สามารถกดบังคับจบงานได้):</p>
+                        <div id="admin-active-runs-list" class="max-h-36 overflow-y-auto text-xs space-y-1">
+                            <p class="text-gray-400 text-center py-2">กำลังโหลดสถานะรถ...</p>
+                        </div>
+                    </div>
+
+                    <div id="vehicle-list-admin" class="max-h-32 overflow-y-auto text-xs space-y-1 pt-2 border-t"></div>
                 </div>
 
                 <!-- นำเข้า Excel และ สำรองข้อมูล (Backup) -->
@@ -286,7 +295,6 @@
         window.onload = async function() {
             initReportDates();
             
-            // ตรวจสอบ Supabase Auth Session
             const { data: { session } } = await _supabase.auth.getSession();
 
             if (session && currentSession) {
@@ -373,7 +381,6 @@
             const password = document.getElementById('login-pass').value.trim();
 
             try {
-                // 1. ล็อกอินผ่าน Supabase Auth
                 const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({
                     email: email,
                     password: password
@@ -381,7 +388,6 @@
 
                 if (authError) throw authError;
 
-                // 2. ดึงข้อมูลโปรไฟล์และ Role จากตาราง carwast.users โดยอิงจาก auth.uid()
                 const userId = authData.user.id;
                 const { data: userProfile, error: profileError } = await _supabase
                     .from('users')
@@ -428,6 +434,7 @@
             }
         }
 
+        // 🌟 ป้องกันการแย่งรถ: ตรวจสอบและล็อกทะเบียนรถที่กำลังใช้งานอยู่
         async function loadVehicleDropdown() {
             const select = document.getElementById('select-plate');
             select.innerHTML = '<option value="">-- กำลังโหลดข้อมูลรถ --</option>';
@@ -441,12 +448,20 @@
             }
 
             select.innerHTML = '<option value="">-- กรุณาเลือกทะเบียนรถ --</option>';
-            const activePlates = (activeRuns || []).map(r => r.vehicle_plate);
+            const activeMap = {};
+            (activeRuns || []).forEach(r => {
+                activeMap[r.vehicle_plate] = r.driver_name;
+            });
 
             (vehicles || []).forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v.plate_no;
-                opt.textContent = `${v.plate_no} (${v.vehicle_type || 'รถขยะ'}) ${activePlates.includes(v.plate_no) ? '[กำลังใช้งาน]' : ''}`;
+                if (activeMap[v.plate_no]) {
+                    opt.textContent = `${v.plate_no} [❌ กำลังถูกใช้งานโดย: ${activeMap[v.plate_no]}]`;
+                    opt.disabled = true; // ล็อกไม่ให้เลือกคันที่มีคนขับอยู่แล้ว
+                } else {
+                    opt.textContent = `${v.plate_no} (${v.vehicle_type || 'รถขยะ'})`;
+                }
                 select.appendChild(opt);
             });
         }
@@ -455,6 +470,19 @@
             event.preventDefault();
             const plate = document.getElementById('select-plate').value;
             if (!plate) return;
+
+            // ตรวจสอบซ้ำอีกรอบเพื่อความปลอดภัยก่อนบันทึก
+            const { data: checkRun } = await _supabase.from('collection_runs')
+                .select('*')
+                .eq('vehicle_plate', plate)
+                .is('end_time', null)
+                .maybeSingle();
+
+            if (checkRun) {
+                alert("ขออภัย! รถคันนี้มีผู้ใช้งานไปแล้ว กรุณาเลือกคันอื่น");
+                loadVehicleDropdown();
+                return;
+            }
 
             const { data, error } = await _supabase.from('collection_runs').insert([{
                 driver_name: currentSession.fullName,
@@ -687,6 +715,9 @@
                 .select('*')
                 .is('end_time', null);
 
+            // อัปเดตรายการรถที่กำลังวิ่งงานในแผง Admin ให้ Admin กด Force End ได้
+            renderAdminActiveRuns(runs || []);
+
             if (error || !runs || runs.length === 0) {
                 countBadge.innerText = 'ไม่มีรถปฏิบัติงานอยู่ขณะนี้ (0 คัน)';
                 Object.values(adminTruckMarkers).forEach(m => adminMap.removeLayer(m));
@@ -724,6 +755,50 @@
                     }
                 }
             });
+        }
+
+        // 🌟 แสดงรายชื่อรถที่กำลังวิ่งงานในหน้า Admin พร้อมปุ่มบังคับจบงาน (Force End Duty)
+        function renderAdminActiveRuns(runs) {
+            const container = document.getElementById('admin-active-runs-list');
+            if (!container) return;
+
+            if (runs.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-center py-2">ไม่มีรถวิ่งงานค้างอยู่</p>`;
+                return;
+            }
+
+            let html = '';
+            runs.forEach(r => {
+                html += `
+                    <div class="flex justify-between items-center bg-gray-50 p-2 rounded border">
+                        <div>
+                            <span class="font-bold">รถ: ${r.vehicle_plate}</span> 
+                            <span class="text-gray-500">(${r.driver_name})</span>
+                        </div>
+                        <button onclick="adminForceEndDuty(${r.id}, '${r.vehicle_plate}')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-[11px] shadow">
+                            <i class="fa-solid fa-power-off"></i> บังคับจบงาน
+                        </button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // 🌟 ฟังก์ชันให้ Admin บังคับจบงานกรณีฉุกเฉิน / คนขับลืมกดออกระบบ
+        async function adminForceEndDuty(runId, plate) {
+            if (confirm(`คุณต้องการบังคับจบงานให้กับรถทะเบียน ${plate} ใช่หรือไม่? (สถานะรถจะถูกเคลียร์ให้ว่างทันที)`)) {
+                const { error } = await _supabase.from('collection_runs').update({
+                    end_time: new Date().toISOString(),
+                    status: 'completed'
+                }).eq('id', runId);
+
+                if (error) {
+                    alert("เกิดข้อผิดพลาดในการบังคับจบงาน");
+                } else {
+                    alert(`บังคับจบงานรถทะเบียน ${plate} สำเร็จ`);
+                    loadAllActiveTrucks();
+                }
+            }
         }
 
         function updateUserMapMarker(lat, lng) {
@@ -971,10 +1046,8 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // 🌟 ฟังก์ชันสำรองข้อมูลทั้งหมดในฐานข้อมูล (Backup Database to Excel)
         async function backupAllDatabase() {
             try {
-                // ดึงข้อมูลจากตารางหลักทั้งหมด
                 const [housesRes, vehiclesRes, runsRes, logsRes] = await Promise.all([
                     _supabase.from('houses').select('*'),
                     _supabase.from('vehicles').select('*'),
@@ -984,31 +1057,23 @@
 
                 const wb = XLSX.utils.book_new();
 
-                // สร้าง Sheet จุดเก็บขยะ (Houses)
                 if (housesRes.data && housesRes.data.length > 0) {
                     const wsHouses = XLSX.utils.json_to_sheet(housesRes.data);
                     XLSX.utils.book_append_sheet(wb, wsHouses, "Houses_จุดเก็บขยะ");
                 }
-
-                // สร้าง Sheet ข้อมูลรถ (Vehicles)
                 if (vehiclesRes.data && vehiclesRes.data.length > 0) {
                     const wsVehicles = XLSX.utils.json_to_sheet(vehiclesRes.data);
                     XLSX.utils.book_append_sheet(wb, wsVehicles, "Vehicles_รถขยะ");
                 }
-
-                // สร้าง Sheet รอบการปฏิบัติงาน (Collection Runs)
                 if (runsRes.data && runsRes.data.length > 0) {
                     const wsRuns = XLSX.utils.json_to_sheet(runsRes.data);
                     XLSX.utils.book_append_sheet(wb, wsRuns, "Runs_รอบวิ่งงาน");
                 }
-
-                // สร้าง Sheet ประวัติการเก็บขยะ (Collection Logs)
                 if (logsRes.data && logsRes.data.length > 0) {
                     const wsLogs = XLSX.utils.json_to_sheet(logsRes.data);
                     XLSX.utils.book_append_sheet(wb, wsLogs, "Logs_ประวัติการเก็บ");
                 }
 
-                // บันทึกไฟล์ Excel
                 const dateStr = new Date().toISOString().slice(0, 10);
                 XLSX.writeFile(wb, `smart_waste_backup_${dateStr}.xlsx`);
                 alert("สำรองข้อมูลฐานข้อมูลสำเร็จ!");
@@ -1099,7 +1164,7 @@
                 </thead>
                 <tbody>`;
 
-            Object.values(driverStats).exports || Object.values(driverStats).forEach(st => {
+            Object.values(driverStats).forEach(st => {
                 html += `<tr class="border hover:bg-gray-50">
                     <td class="p-2 border font-semibold">${st.plate}</td>
                     <td class="p-2 border">${st.driver}</td>
