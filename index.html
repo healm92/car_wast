@@ -95,7 +95,7 @@
                     <p class="text-[11px] text-gray-500">GPS: <span id="gps-status" class="text-orange-500 font-semibold">กำลังค้นหา...</span></p>
                 </div>
                 <div class="flex gap-1.5">
-                    <button onclick="simulateAdminOverride()" class="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded-lg text-xs shadow" title="บันทึกจากสำนักงาน">
+                    <button onclick="simulateAdminOverride()" class="bg-amber-500 hover:bg-amber-600  text-white px-2.5 py-1.5 rounded-lg text-xs shadow" title="บันทึกจากสำนักงาน">
                         <i class="fa-solid fa-building-columns"></i>
                     </button>
                     <button onclick="finishDuty()" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-xs shadow" title="จบงานวันนี้">
@@ -166,16 +166,13 @@
                 </div>
             </div>
 
-            <!-- แผนที่ตรวจสอบสำหรับ Admin (สถานะเขียว/แดง) -->
+            <!-- แผนที่ติดตามรถทุกคันแบบ Realtime สำหรับ Admin -->
             <div class="bg-white p-4 rounded-xl shadow space-y-2">
                 <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-map-marked-alt text-emerald-600"></i> แผนที่ภาพรวมสถานะการเก็บขยะประจำวัน</h3>
-                    <div class="text-xs space-x-2">
-                        <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded">🔴 ยังไม่เก็บ</span>
-                        <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">🟢 เก็บแล้ว</span>
-                    </div>
+                    <h3 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-satellite-dish text-blue-600"></i> ติดตามตำแหน่งรถขยะทุกคันแบบ Real-time</h3>
+                    <span id="active-trucks-count" class="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-semibold">กำลังโหลดรถที่ปฏิบัติงาน...</span>
                 </div>
-                <div id="admin-map" class="rounded-lg shadow-inner h-[350px] w-full z-10"></div>
+                <div id="admin-map" class="rounded-lg shadow-inner h-[400px] w-full z-10"></div>
             </div>
 
             <!-- เพิ่ม / แก้ไข ข้อมูลจุดเก็บขยะ -->
@@ -201,7 +198,7 @@
                 </form>
             </div>
 
-            <!-- ตารางรายการจุดเก็บขยะ + ช่องค้นหา (บ้านเลขที่ / หมู่ / ชื่อเจ้าบ้าน) -->
+            <!-- ตารางรายการจุดเก็บขยะ + ช่องค้นหา -->
             <div class="bg-white p-4 rounded-xl shadow space-y-3">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 border-b pb-2">
                     <h3 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-house-chimney"></i> รายการจุดเก็บขยะทั้งหมดในระบบ</h3>
@@ -260,8 +257,10 @@
         let currentSession = JSON.parse(localStorage.getItem('carwast_session')) || null;
         let driverMap = null, adminMap = null;
         let markerUser = null, driverHouseMarkers = [], adminHouseMarkers = [];
+        let adminTruckMarkers = {}; // เก็บหมุดรถของ Admin แต่ละคัน
         let watchId = null, isFollowingGPS = true, isFirstGPSCenter = true;
-        let allAdminHousesData = []; // เก็บแคชไว้ให้ค้นหาเร็วขึ้น
+        let allAdminHousesData = [];
+        let adminLiveInterval = null;
 
         window.onload = async function() {
             initMonthSelector();
@@ -305,6 +304,9 @@
                 document.getElementById(`view-${v}`).classList.add('hidden');
             });
             
+            // เคลียร์ interval ของ admin เมื่อเปลี่ยนหน้า
+            if (adminLiveInterval) { clearInterval(adminLiveInterval); adminLiveInterval = null; }
+
             const navUserInfo = document.getElementById('nav-user-info');
             const driverDisplay = document.getElementById('nav-driver-display');
 
@@ -333,7 +335,12 @@
                 loadAdminVehicles();
                 loadAdminHousesTable();
                 loadReportMooFilter();
-                setTimeout(() => { initAdminMap(); }, 200);
+                setTimeout(() => { 
+                    initAdminMap(); 
+                    loadAllActiveTrucks(); 
+                    // รีเฟรชตำแหน่งรถทุกๆ 8 วินาทีแบบ Real-time
+                    adminLiveInterval = setInterval(loadAllActiveTrucks, 8000);
+                }, 200);
             }
         }
 
@@ -432,6 +439,7 @@
         }
 
         async function logoutSystem() {
+            if (adminLiveInterval) clearInterval(adminLiveInterval);
             currentSession = null;
             localStorage.removeItem('carwast_session');
             if (watchId) navigator.geolocation.clearWatch(watchId);
@@ -446,10 +454,7 @@
                         status: 'completed' 
                     }).eq('id', currentSession.runId);
                 }
-                currentSession = null;
-                localStorage.removeItem('carwast_session');
-                if (watchId) navigator.geolocation.clearWatch(watchId);
-                switchView('login');
+                logoutSystem();
             }
         }
 
@@ -494,7 +499,16 @@
                     const lat = pos.coords.latitude, lng = pos.coords.longitude;
                     document.getElementById('gps-status').innerText = `พิกัด (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
                     document.getElementById('gps-status').className = "text-emerald-600 font-semibold";
+                    
                     updateUserMapMarker(lat, lng);
+
+                    // อัปเดตพิกัดปัจจุบันขึ้นฐานข้อมูล เพื่อให้ Admin เห็นแบบ Realtime
+                    if (currentSession && currentSession.runId) {
+                        _supabase.from('collection_runs').update({
+                            current_lat: lat,
+                            current_lng: lng
+                        }).eq('id', currentSession.runId).then(() => {});
+                    }
                 }, () => {
                     document.getElementById('gps-status').innerText = "ไม่สามารถเข้าถึง GPS";
                     updateUserMapMarker(14.07, 101.58);
@@ -538,7 +552,6 @@
             loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
         }
 
-        // ฟังก์ชันส่วนกลางสำหรับสร้างหมุด สีแดง (ยังไม่เก็บ) / สีเขียว (เก็บแล้ว)
         async function loadHouseMarkersOnMap(targetMap, markerArray) {
             if (!targetMap) return;
             markerArray.forEach(m => targetMap.removeLayer(m));
@@ -550,14 +563,64 @@
 
             (houses || []).forEach(h => {
                 const collected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
-                const color = collected ? '#10b981' : '#ef4444'; // เขียว / แดง
+                const color = collected ? '#10b981' : '#ef4444'; 
                 const icon = L.divIcon({ 
-                    html: `<div style="background:${color}; width:16px; height:16px; border-radius:50%; border:2px solid white; box-shadow:0 0 5px rgba(0,0,0,0.6);"></div>`, 
+                    html: `<div style="background:${color}; width:14px; height:14px; border-radius:50%; border:2px solid white; box-shadow:0 0 4px rgba(0,0,0,0.6);"></div>`, 
                     className: '' 
                 });
                 const marker = L.marker([h.latitude, h.longitude], { icon }).addTo(targetMap);
                 marker.bindPopup(`<b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>เจ้าของ: ${h.owner || '-'}<br>สถานะวันนี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}`);
                 markerArray.push(marker);
+            });
+        }
+
+        // โหลดตำแหน่งรถทุกคันแบบ Real-time สำหรับ Admin
+        async function loadAllActiveTrucks() {
+            if (!adminMap) return;
+            const countBadge = document.getElementById('active-trucks-count');
+
+            const { data: runs, error } = await _supabase
+                .from('collection_runs')
+                .select('*')
+                .is('end_time', null);
+
+            if (error || !runs || runs.length === 0) {
+                countBadge.innerText = 'ไม่มีรถปฏิบัติงานอยู่ขณะนี้ (0 คัน)';
+                // ลบหมุดรถเก่าออกถ้าไม่มีรถวิ่ง
+                Object.values(adminTruckMarkers).forEach(m => adminMap.removeLayer(m));
+                adminTruckMarkers = {};
+                return;
+            }
+
+            countBadge.innerText = `กำลังปฏิบัติงานอยู่ ${runs.length} คัน`;
+            const activeRunIds = runs.map(r => r.id);
+
+            // ลบหมุดรถที่จบงานไปแล้ว
+            Object.keys(adminTruckMarkers).forEach(id => {
+                if (!activeRunIds.includes(Number(id))) {
+                    adminMap.removeLayer(adminTruckMarkers[id]);
+                    delete adminTruckMarkers[id];
+                }
+            });
+
+            runs.forEach(r => {
+                // ถ้ามีพิกัด current_lat และ current_lng
+                if (r.current_lat && r.current_lng) {
+                    const latLng = [r.current_lat, r.current_lng];
+                    const popupText = `<b>🚛 รถขยะ: ${r.vehicle_plate}</b><br>คนขับ: ${r.driver_name}<br>สถานะ: กำลังปฏิบัติงาน`;
+
+                    if (adminTruckMarkers[r.id]) {
+                        adminTruckMarkers[r.id].setLatLng(latLng);
+                        adminTruckMarkers[r.id].getPopup().setContent(popupText);
+                    } else {
+                        const icon = L.divIcon({ 
+                            html: '<div style="background:#3b82f6; width:26px; height:26px; border-radius:50%; border:3px solid white; box-shadow:0 0 8px rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-truck text-white text-[11px]"></i></div>', 
+                            className: '' 
+                        });
+                        const marker = L.marker(latLng, { icon }).addTo(adminMap).bindPopup(popupText);
+                        adminTruckMarkers[r.id] = marker;
+                    }
+                }
             });
         }
 
@@ -639,7 +702,7 @@
             }
         }
 
-        // ----------------- ADMIN FUNCTIONS (ตาราง / ค้นหา / เพิ่ม / แก้ไข) -----------------
+        // ----------------- ADMIN FUNCTIONS -----------------
         async function addVehicle(e) {
             e.preventDefault();
             const plate = document.getElementById('new-plate').value;
@@ -666,7 +729,6 @@
             loadAdminVehicles();
         }
 
-        // เพิ่ม / แก้ไข บ้าน
         async function saveHouse(e) {
             e.preventDefault();
             const id = document.getElementById('h-id').value;
@@ -680,12 +742,10 @@
             };
 
             if (id) {
-                // แก้ไขข้อมูลเดิม
                 const { error } = await _supabase.from('houses').update(payload).eq('id', id);
                 if (error) alert("แก้ไขไม่สำเร็จ: " + error.message);
                 else alert("อัปเดตข้อมูลบ้านสำเร็จ!");
             } else {
-                // เพิ่มใหม่
                 const { error } = await _supabase.from('houses').insert([payload]);
                 if (error) alert("เพิ่มไม่สำเร็จ: " + error.message);
                 else alert("เพิ่มจุดเก็บขยะสำเร็จ!");
@@ -714,7 +774,6 @@
             document.getElementById('btn-submit-house').className = 'flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded text-xs font-semibold shadow';
             document.getElementById('btn-cancel-edit').classList.remove('hidden');
 
-            // เลื่อนหน้าจอไปที่ฟอร์ม
             document.getElementById('house-form').scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -727,7 +786,6 @@
             document.getElementById('btn-cancel-edit').classList.add('hidden');
         }
 
-        // โหลดตารางบ้าน Admin
         async function loadAdminHousesTable() {
             const container = document.getElementById('admin-house-list-container');
             const countBadge = document.getElementById('total-houses-count');
@@ -746,7 +804,6 @@
             renderAdminHousesTable(houses);
         }
 
-        // ค้นหา บ้านเลขที่ / หมู่ / ชื่อเจ้าบ้าน Realtime
         function filterAdminHousesTable() {
             const term = document.getElementById('admin-search-input').value.toLowerCase().trim();
             if (!term) {
@@ -779,8 +836,8 @@
                     <td class="p-2 border">${h.owner || '-'}</td>
                     <td class="p-2 border text-center">${h.bin_count}</td>
                     <td class="p-2 border text-center space-x-1">
-                        <button onclick="editHouse(${h.id})" class="bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded text-xs" title="แก้ไขข้อมูล"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
-                        <button onclick="deleteHouse(${h.id})" class="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1 rounded text-xs" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="editHouse(${h.id})" class="bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded text-xs"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
+                        <button onclick="deleteHouse(${h.id})" class="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>`;
             });
