@@ -14,6 +14,24 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
+
+        /* 🌟 CSS พิเศษสำหรับการพิมพ์รายงาน (ซ่อนเมนูที่ไม่จำเป็นเมื่อสั่ง Print) */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #academic-report-container, #academic-report-container * {
+                visibility: visible;
+            }
+            #academic-report-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+                background: white !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800">
@@ -530,7 +548,7 @@
             });
 
             L.control.layers({ "🛰️ ดาวเทียม": satelliteLayer, "🗺️ ถนน": osmLayer }).addTo(driverMap);
-            loadHouseMarkersOnMap(driverMap, driverHouseMarkers);
+            loadDriverHouseMarkers();
         }
 
         function initAdminMap() {
@@ -547,14 +565,13 @@
             });
 
             L.control.layers({ "🛰️ ดาวเทียม": satelliteLayer, "🗺️ ถนน": osmLayer }).addTo(adminMap);
-            loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
+            loadAdminHouseMarkers();
         }
 
-        // 🌟 แสดงหมุดวงกลมบ้านเลขที่ พร้อมปุ่ม เก็บ, ข้าม, และนำทาง Google Maps ใน Popup
-        async function loadHouseMarkersOnMap(targetMap, markerArray) {
-            if (!targetMap) return;
-            markerArray.forEach(m => targetMap.removeLayer(m));
-            markerArray.length = 0;
+        async function loadDriverHouseMarkers() {
+            if (!driverMap) return;
+            driverHouseMarkers.forEach(m => driverMap.removeLayer(m));
+            driverHouseMarkers.length = 0;
 
             const todayStr = new Date().toISOString().slice(0, 10);
             const { data: houses } = await _supabase.from('houses').select('*');
@@ -566,16 +583,9 @@
                 
                 const htmlBadge = `<div style="background:${bgColor}; color:white; width:34px; height:34px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${h.house_no}</div>`;
                 
-                const icon = L.divIcon({ 
-                    html: htmlBadge, 
-                    className: '',
-                    iconSize: [34, 34],
-                    iconAnchor: [17, 17]
-                });
-
+                const icon = L.divIcon({ html: htmlBadge, className: '', iconSize: [34, 34], iconAnchor: [17, 17] });
                 const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${h.latitude},${h.longitude}`;
 
-                // Popup พร้อมปุ่ม เก็บ, ข้าม และ นำทาง
                 const popupContent = `
                     <div style="font-family: 'Sarabun', sans-serif; font-size: 12px; min-width: 160px;">
                         <b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>
@@ -595,17 +605,49 @@
                     </div>
                 `;
 
-                const marker = L.marker([h.latitude, h.longitude], { icon }).addTo(targetMap);
+                const marker = L.marker([h.latitude, h.longitude], { icon }).addTo(driverMap);
                 marker.bindPopup(popupContent);
-                markerArray.push(marker);
+                driverHouseMarkers.push(marker);
             });
         }
 
-        // ฟังก์ชันเมื่อกดปุ่มข้ามในแผนที่
+        async function loadAdminHouseMarkers() {
+            if (!adminMap) return;
+            adminHouseMarkers.forEach(m => adminMap.removeLayer(m));
+            adminHouseMarkers.length = 0;
+
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const { data: houses } = await _supabase.from('houses').select('*');
+            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', todayStr + 'T00:00:00');
+
+            (houses || []).forEach(h => {
+                const collected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
+                const bgColor = collected ? '#10b981' : '#ef4444'; 
+                
+                const htmlBadge = `<div style="background:${bgColor}; color:white; width:34px; height:34px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${h.house_no}</div>`;
+                
+                const icon = L.divIcon({ html: htmlBadge, className: '', iconSize: [34, 34], iconAnchor: [17, 17] });
+                const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${h.latitude},${h.longitude}`;
+
+                const popupContent = `
+                    <div style="font-family: 'Sarabun', sans-serif; font-size: 12px; min-width: 150px;">
+                        <b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>
+                        เจ้าของ: ${h.owner || '-'}<br>
+                        สถานะวันนี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}
+                        <hr style="margin: 6px 0;">
+                        <a href="${gMapsUrl}" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded text-xs font-semibold shadow text-center" style="text-decoration:none;"><i class="fa-solid fa-diamond-turn-right"></i> นำทางไปจุดนี้</a>
+                    </div>
+                `;
+
+                const marker = L.marker([h.latitude, h.longitude], { icon }).addTo(adminMap);
+                marker.bindPopup(popupContent);
+                adminHouseMarkers.push(marker);
+            });
+        }
+
         function mapPopupSkip(houseId, houseNo) {
             alert(`ข้ามบ้านเลขที่ ${houseNo} ชั่วคราว`);
             if (driverMap) driverMap.closePopup();
-            if (adminMap) adminMap.closePopup();
         }
 
         async function loadAllActiveTrucks() {
@@ -721,10 +763,10 @@
             }]);
             loadDriverHouses();
             if (driverMap) {
-                loadHouseMarkersOnMap(driverMap, driverHouseMarkers);
+                loadDriverHouseMarkers();
                 driverMap.closePopup();
             }
-            if (adminMap) loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
+            if (adminMap) loadAdminHouseMarkers();
         }
 
         async function simulateAdminOverride() {
@@ -781,7 +823,7 @@
 
             resetHouseForm();
             loadAdminHousesTable();
-            if (adminMap) loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
+            if (adminMap) loadAdminHouseMarkers();
         }
 
         function resetHouseForm() {
@@ -859,7 +901,7 @@
             if (confirm('คุณต้องการลบจุดเก็บขยะนี้ใช่หรือไม่?')) {
                 await _supabase.from('houses').delete().eq('id', id);
                 loadAdminHousesTable();
-                if (adminMap) loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
+                if (adminMap) loadAdminHouseMarkers();
             }
         }
 
@@ -891,22 +933,31 @@
                 await _supabase.from('houses').insert(payload);
                 alert(`นำเข้าสำเร็จ ${payload.length} รายการ`);
                 loadAdminHousesTable();
-                if (adminMap) loadHouseMarkersOnMap(adminMap, adminHouseMarkers);
+                if (adminMap) loadAdminHouseMarkers();
             };
             reader.readAsArrayBuffer(file);
         }
 
+        // 🌟 ฟังก์ชันแปลงวันที่เป็นรูปแบบไทย (เช่น 5 พฤศจิกายน 2569)
+        function formatDateThai(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+            return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`;
+        }
+
+        // 🌟 ฟังก์ชันประมวลผลและสร้างรายงาน (ปรับหัวข้อตามที่ขอ)
         async function generateAdvancedReport() {
             const startDate = document.getElementById('report-start-date').value;
             const endDate = document.getElementById('report-end-date').value;
             const container = document.getElementById('academic-report-container');
 
             if (!startDate || !endDate) {
-                alert("กรุณาเลือกช่วงวันที่เริ่มต้นและสิ้นสุด");
+                alert("เลือกช่วงวันที่เริ่มต้นและสิ้นสุดด้วยครับ");
                 return;
             }
 
-            container.innerHTML = `<p class="text-gray-400 text-center py-4">กำลังประมวลผลข้อมูลรายงาน...</p>`;
+            container.innerHTML = `<p class="text-gray-400 text-center py-4">กำลังประมวลผลรายงาน...</p>`;
 
             const { data: runs } = await _supabase.from('collection_runs').select('*');
             const { data: logs } = await _supabase.from('collection_logs').select('*')
@@ -944,7 +995,13 @@
                 totalBinsAll += Number(house.bin_count || 1);
             });
 
-            let academicText = `รายงานผลการดำเนินงานการจัดการและเก็บขนขยะมูลฝอย ประจำวันที่ ${startDate} ถึงวันที่ ${endDate} องค์การบริหารส่วนตำบลเมืองเก่า สรุปผลการปฏิบัติงานได้ดังนี้: <br><br>`;
+            const startThai = formatDateThai(startDate);
+            const endThai = formatDateThai(endDate);
+            const dateRangeText = startDate === endDate ? `วันที่ ${startThai}` : `ตั้งแต่วันที่ ${startThai} ถึงวันที่ ${endThai}`;
+
+            // 🌟 ปรับหัวข้อตามที่ผู้ใช้ต้องการ
+            let academicText = `<div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 8px;">รายงานผลการปฏิบัติงานเก็บขนขยะมูลฝอยในเขต<br>องค์การบริหารส่วนตำบลเมืองเก่า กองสาธารณสุขและสิ่งแวดล้อม</div>`;
+            academicText += `ประจำ${dateRangeText} สรุปผลการปฏิบัติงานได้ดังนี้: <br><br>`;
             
             Object.values(driverStats).forEach(st => {
                 const mooArr = Array.from(st.moos).join(', ');
