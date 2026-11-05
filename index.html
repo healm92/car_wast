@@ -164,9 +164,9 @@
                     <div id="vehicle-list-admin" class="max-h-40 overflow-y-auto text-xs space-y-1"></div>
                 </div>
 
-                <!-- นำเข้า Excel -->
+                <!-- นำเข้า Excel และ สำรองข้อมูล (Backup) -->
                 <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 text-sm border-b pb-2"><i class="fa-solid fa-database"></i> จัดการฐานข้อมูล & Excel</h3>
+                    <h3 class="font-bold text-gray-700 text-sm border-b pb-2"><i class="fa-solid fa-database"></i> จัดการฐานข้อมูล & สำรองข้อมูล</h3>
                     <div class="flex flex-wrap gap-2">
                         <button onclick="downloadExcelTemplate()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-xs flex-1 shadow">
                             <i class="fa-solid fa-file-arrow-down"></i> โหลด Excel Template
@@ -175,6 +175,12 @@
                             <i class="fa-solid fa-file-excel"></i> นำเข้า Excel จุดเก็บ
                             <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" onchange="importExcelHouses(event)" class="hidden">
                         </label>
+                    </div>
+                    <!-- ปุ่มสำรองข้อมูลสำหรับ Admin -->
+                    <div class="pt-2 border-t">
+                        <button onclick="backupAllDatabase()" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-3 py-2.5 rounded text-xs font-semibold shadow flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-down text-sm"></i> สำรองข้อมูลทั้งหมด (Backup Database to Excel)
+                        </button>
                     </div>
                 </div>
             </div>
@@ -965,6 +971,53 @@
             reader.readAsArrayBuffer(file);
         }
 
+        // 🌟 ฟังก์ชันสำรองข้อมูลทั้งหมดในฐานข้อมูล (Backup Database to Excel)
+        async function backupAllDatabase() {
+            try {
+                // ดึงข้อมูลจากตารางหลักทั้งหมด
+                const [housesRes, vehiclesRes, runsRes, logsRes] = await Promise.all([
+                    _supabase.from('houses').select('*'),
+                    _supabase.from('vehicles').select('*'),
+                    _supabase.from('collection_runs').select('*'),
+                    _supabase.from('collection_logs').select('*')
+                ]);
+
+                const wb = XLSX.utils.book_new();
+
+                // สร้าง Sheet จุดเก็บขยะ (Houses)
+                if (housesRes.data && housesRes.data.length > 0) {
+                    const wsHouses = XLSX.utils.json_to_sheet(housesRes.data);
+                    XLSX.utils.book_append_sheet(wb, wsHouses, "Houses_จุดเก็บขยะ");
+                }
+
+                // สร้าง Sheet ข้อมูลรถ (Vehicles)
+                if (vehiclesRes.data && vehiclesRes.data.length > 0) {
+                    const wsVehicles = XLSX.utils.json_to_sheet(vehiclesRes.data);
+                    XLSX.utils.book_append_sheet(wb, wsVehicles, "Vehicles_รถขยะ");
+                }
+
+                // สร้าง Sheet รอบการปฏิบัติงาน (Collection Runs)
+                if (runsRes.data && runsRes.data.length > 0) {
+                    const wsRuns = XLSX.utils.json_to_sheet(runsRes.data);
+                    XLSX.utils.book_append_sheet(wb, wsRuns, "Runs_รอบวิ่งงาน");
+                }
+
+                // สร้าง Sheet ประวัติการเก็บขยะ (Collection Logs)
+                if (logsRes.data && logsRes.data.length > 0) {
+                    const wsLogs = XLSX.utils.json_to_sheet(logsRes.data);
+                    XLSX.utils.book_append_sheet(wb, wsLogs, "Logs_ประวัติการเก็บ");
+                }
+
+                // บันทึกไฟล์ Excel
+                const dateStr = new Date().toISOString().slice(0, 10);
+                XLSX.writeFile(wb, `smart_waste_backup_${dateStr}.xlsx`);
+                alert("สำรองข้อมูลฐานข้อมูลสำเร็จ!");
+            } catch (err) {
+                console.error(err);
+                alert("เกิดข้อผิดพลาดในการสำรองข้อมูล: " + err.message);
+            }
+        }
+
         function formatDateThai(dateStr) {
             if (!dateStr) return '';
             const d = new Date(dateStr);
@@ -1046,7 +1099,7 @@
                 </thead>
                 <tbody>`;
 
-            Object.values(driverStats).forEach(st => {
+            Object.values(driverStats).exports || Object.values(driverStats).forEach(st => {
                 html += `<tr class="border hover:bg-gray-50">
                     <td class="p-2 border font-semibold">${st.plate}</td>
                     <td class="p-2 border">${st.driver}</td>
