@@ -15,14 +15,9 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
 
-        /* 🌟 CSS พิเศษสำหรับการพิมพ์รายงาน (ซ่อนเมนูที่ไม่จำเป็นเมื่อสั่ง Print) */
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            #academic-report-container, #academic-report-container * {
-                visibility: visible;
-            }
+            body * { visibility: hidden; }
+            #academic-report-container, #academic-report-container * { visibility: visible; }
             #academic-report-container {
                 position: absolute;
                 left: 0;
@@ -127,7 +122,7 @@
                 <div class="flex justify-between items-center mb-2">
                     <h4 class="font-bold text-gray-700 text-xs flex items-center gap-1.5">
                         <i class="fa-solid fa-map-location-dot text-emerald-600"></i> แผนที่นำทาง 
-                        <span class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-normal">🔴 ยังไม่เก็บ</span>
+                        <span class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-normal">🔴 ยังไม่เก็บรอบนี้</span>
                         <span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-normal">🟢 เก็บแล้ว</span>
                     </h4>
                     <button id="btn-toggle-follow" onclick="toggleFollowGPS()" class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-[11px] font-semibold border border-emerald-300">
@@ -140,7 +135,7 @@
             <!-- รายการบ้าน -->
             <div class="bg-white p-3 rounded-xl shadow">
                 <div class="flex justify-between items-center mb-2">
-                    <h4 class="font-bold text-gray-700 text-xs"><i class="fa-solid fa-list-check"></i> รายการบ้านในความรับผิดชอบ</h4>
+                    <h4 class="font-bold text-gray-700 text-xs"><i class="fa-solid fa-list-check"></i> รายการบ้านในความรับผิดชอบรอบนี้</h4>
                     <select id="filter-moo" onchange="loadDriverHouses()" class="border rounded px-2 py-1 text-xs bg-gray-50">
                         <option value="">ทุกหมู่บ้าน</option>
                     </select>
@@ -568,14 +563,20 @@
             loadAdminHouseMarkers();
         }
 
+        // 🌟 ตรวจสอบสถานะการเก็บของรอบสัปดาห์นี้ (เริ่มนับตั้งแต่วันจันทร์ หรือรีเซ็ตตามรอบที่ต้องการ)
         async function loadDriverHouseMarkers() {
             if (!driverMap) return;
             driverHouseMarkers.forEach(m => driverMap.removeLayer(m));
             driverHouseMarkers.length = 0;
 
-            const todayStr = new Date().toISOString().slice(0, 10);
+            // คำนวณหาวันจันทร์ของสัปดาห์นี้ เพื่อให้สถานะรีเซ็ตตามรอบสัปดาห์
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            const mondayOfWeek = new Date(now.setDate(diffToMonday)).toISOString().slice(0, 10);
+
             const { data: houses } = await _supabase.from('houses').select('*');
-            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', todayStr + 'T00:00:00');
+            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00');
 
             (houses || []).forEach(h => {
                 const collected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
@@ -590,7 +591,7 @@
                     <div style="font-family: 'Sarabun', sans-serif; font-size: 12px; min-width: 160px;">
                         <b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>
                         เจ้าของ: ${h.owner || '-'}<br>
-                        สถานะวันนี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}
+                        สถานะรอบสัปดาห์นี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}
                         <hr style="margin: 6px 0;">
                         <div style="display: flex; gap: 4px; flex-direction: column;">
                             ${collected ? 
@@ -616,9 +617,13 @@
             adminHouseMarkers.forEach(m => adminMap.removeLayer(m));
             adminHouseMarkers.length = 0;
 
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            const mondayOfWeek = new Date(now.setDate(diffToMonday)).toISOString().slice(0, 10);
+
             const { data: houses } = await _supabase.from('houses').select('*');
-            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', todayStr + 'T00:00:00');
+            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00');
 
             (houses || []).forEach(h => {
                 const collected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
@@ -633,7 +638,7 @@
                     <div style="font-family: 'Sarabun', sans-serif; font-size: 12px; min-width: 150px;">
                         <b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>
                         เจ้าของ: ${h.owner || '-'}<br>
-                        สถานะวันนี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}
+                        สถานะรอบสัปดาห์นี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}
                         <hr style="margin: 6px 0;">
                         <a href="${gMapsUrl}" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded text-xs font-semibold shadow text-center" style="text-decoration:none;"><i class="fa-solid fa-diamond-turn-right"></i> นำทางไปจุดนี้</a>
                     </div>
@@ -724,13 +729,18 @@
         async function loadDriverHouses() {
             const container = document.getElementById('driver-house-list');
             const filterMoo = document.getElementById('filter-moo').value;
-            const todayStr = new Date().toISOString().slice(0, 10);
+            
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            const mondayOfWeek = new Date(now.setDate(diffToMonday)).toISOString().slice(0, 10);
+
             container.innerHTML = '';
 
             let query = _supabase.from('houses').select('*');
             if (filterMoo) query = query.eq('moo', filterMoo);
             const { data: houses } = await query;
-            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', todayStr + 'T00:00:00');
+            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00');
 
             if (!houses || houses.length === 0) {
                 container.innerHTML = `<p class="text-gray-400 text-center py-2 text-xs">ไม่พบข้อมูลบ้าน</p>`;
@@ -938,7 +948,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // 🌟 ฟังก์ชันแปลงวันที่เป็นรูปแบบไทย (เช่น 5 พฤศจิกายน 2569)
         function formatDateThai(dateStr) {
             if (!dateStr) return '';
             const d = new Date(dateStr);
@@ -946,7 +955,6 @@
             return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`;
         }
 
-        // 🌟 ฟังก์ชันประมวลผลและสร้างรายงาน (ปรับหัวข้อตามที่ขอ)
         async function generateAdvancedReport() {
             const startDate = document.getElementById('report-start-date').value;
             const endDate = document.getElementById('report-end-date').value;
@@ -999,7 +1007,6 @@
             const endThai = formatDateThai(endDate);
             const dateRangeText = startDate === endDate ? `วันที่ ${startThai}` : `ตั้งแต่วันที่ ${startThai} ถึงวันที่ ${endThai}`;
 
-            // 🌟 ปรับหัวข้อตามที่ผู้ใช้ต้องการ
             let academicText = `<div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 8px;">รายงานผลการปฏิบัติงานเก็บขนขยะมูลฝอยในเขต<br>องค์การบริหารส่วนตำบลเมืองเก่า กองสาธารณสุขและสิ่งแวดล้อม</div>`;
             academicText += `ประจำ${dateRangeText} สรุปผลการปฏิบัติงานได้ดังนี้: <br><br>`;
             
