@@ -288,6 +288,17 @@
             db: { schema: 'carwast' }
         });
 
+        // 🛡️ เพิ่มฟังก์ชัน Escape HTML เพื่อป้องกัน Cross-Site Scripting (XSS)
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         let currentSession = JSON.parse(localStorage.getItem('carwast_session')) || null;
         let driverMap = null, adminMap = null;
         let markerUser = null, driverHouseMarkers = [], adminHouseMarkers = [];
@@ -369,13 +380,13 @@
                 document.getElementById('view-select-vehicle').classList.remove('hidden');
                 navUserInfo.classList.remove('hidden');
                 if (currentSession) {
-                    driverDisplay.innerText = `${currentSession.fullName} (เลือกรถ)`;
+                    driverDisplay.textContent = `${currentSession.fullName} (เลือกรถ)`;
                 }
                 loadVehicleDropdown();
             } else if (viewName === 'driver') {
                 document.getElementById('view-driver').classList.remove('hidden');
                 navUserInfo.classList.remove('hidden');
-                driverDisplay.innerText = `${currentSession.fullName} (${currentSession.plate})`;
+                driverDisplay.textContent = `${currentSession.fullName} (${currentSession.plate})`;
                 setTimeout(() => { 
                     initDriverMap(); 
                     loadDriverHouses(); 
@@ -383,7 +394,7 @@
             } else if (viewName === 'admin') {
                 document.getElementById('view-admin').classList.remove('hidden');
                 navUserInfo.classList.remove('hidden');
-                driverDisplay.innerText = `${currentSession.fullName} (Admin)`;
+                driverDisplay.textContent = `${currentSession.fullName} (Admin)`;
                 loadAdminVehicles();
                 loadAdminHousesTable();
                 loadReportMooDropdown();
@@ -543,7 +554,7 @@
         }
 
         function startDriverWorkspace() {
-            document.getElementById('driver-status-title').innerText = `คนขับ: ${currentSession.fullName} | รถ: ${currentSession.plate}`;
+            document.getElementById('driver-status-title').textContent = `คนขับ: ${currentSession.fullName} | รถ: ${currentSession.plate}`;
             loadDriverMooFilter();
             trackGPS();
         }
@@ -651,15 +662,15 @@
                 const collected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
                 const bgColor = collected ? '#10b981' : '#ef4444'; 
                 
-                const htmlBadge = `<div style="background:${bgColor}; color:white; width:34px; height:34px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${h.house_no}</div>`;
+                const htmlBadge = `<div style="background:${bgColor}; color:white; width:34px; height:34px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${escapeHtml(h.house_no)}</div>`;
                 
                 const icon = L.divIcon({ html: htmlBadge, className: '', iconSize: [34, 34], iconAnchor: [17, 17] });
-                const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${h.latitude},${h.longitude}`;
+                const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(h.latitude)},${encodeURIComponent(h.longitude)}`;
 
                 const popupContent = `
                     <div style="font-family: 'Sarabun', sans-serif; font-size: 12px; min-width: 160px;">
-                        <b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>
-                        เจ้าของ: ${h.owner || '-'}<br>
+                        <b>บ้านเลขที่ ${escapeHtml(h.house_no)} (${escapeHtml(h.moo)})</b><br>
+                        เจ้าของ: ${escapeHtml(h.owner || '-')}<br>
                         สถานะรอบสัปดาห์นี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}
                         <hr style="margin: 6px 0;">
                         <div style="display: flex; gap: 4px; flex-direction: column;">
@@ -668,7 +679,7 @@
                                 `<button onclick="markCollected(${h.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 rounded text-xs font-bold shadow text-center"><i class="fa-solid fa-check"></i> ✅ กดเก็บ</button>`
                             }
                             <div style="display: flex; gap: 4px;">
-                                <button onclick="mapPopupSkip(${h.id}, '${h.house_no}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded text-xs font-semibold shadow text-center"><i class="fa-solid fa-forward"></i> ⏭️ ข้าม</button>
+                                <button onclick="mapPopupSkip(${h.id}, '${escapeHtml(h.house_no)}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded text-xs font-semibold shadow text-center"><i class="fa-solid fa-forward"></i> ⏭️ ข้าม</button>
                                 <a href="${gMapsUrl}" target="_blank" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-semibold shadow text-center inline-block" style="text-decoration:none;"><i class="fa-solid fa-diamond-turn-right"></i> นำทาง</a>
                             </div>
                         </div>
@@ -698,15 +709,15 @@
                 const collected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
                 const bgColor = collected ? '#10b981' : '#ef4444'; 
                 
-                const htmlBadge = `<div style="background:${bgColor}; color:white; width:34px; height:34px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${h.house_no}</div>`;
+                const htmlBadge = `<div style="background:${bgColor}; color:white; width:34px; height:34px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${escapeHtml(h.house_no)}</div>`;
                 
                 const icon = L.divIcon({ html: htmlBadge, className: '', iconSize: [34, 34], iconAnchor: [17, 17] });
-                const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${h.latitude},${h.longitude}`;
+                const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(h.latitude)},${encodeURIComponent(h.longitude)}`;
 
                 const popupContent = `
                     <div style="font-family: 'Sarabun', sans-serif; font-size: 12px; min-width: 150px;">
-                        <b>บ้านเลขที่ ${h.house_no} (${h.moo})</b><br>
-                        เจ้าของ: ${h.owner || '-'}<br>
+                        <b>บ้านเลขที่ ${escapeHtml(h.house_no)} (${escapeHtml(h.moo)})</b><br>
+                        เจ้าของ: ${escapeHtml(h.owner || '-')}<br>
                         สถานะรอบสัปดาห์นี้: ${collected ? '🟢 เก็บแล้ว' : '🔴 ยังไม่เก็บ'}
                         <hr style="margin: 6px 0;">
                         <a href="${gMapsUrl}" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded text-xs font-semibold shadow text-center" style="text-decoration:none;"><i class="fa-solid fa-diamond-turn-right"></i> นำทางไปจุดนี้</a>
@@ -755,7 +766,7 @@
             runs.forEach(r => {
                 if (r.current_lat && r.current_lng) {
                     const latLng = [r.current_lat, r.current_lng];
-                    const popupText = `<b>🚛 รถขยะ: ${r.vehicle_plate}</b><br>คนขับ: ${r.driver_name}<br>สถานะ: กำลังปฏิบัติงาน`;
+                    const popupText = `<b>🚛 รถขยะ: ${escapeHtml(r.vehicle_plate)}</b><br>คนขับ: ${escapeHtml(r.driver_name)}<br>สถานะ: กำลังปฏิบัติงาน`;
 
                     if (adminTruckMarkers[r.id]) {
                         adminTruckMarkers[r.id].setLatLng(latLng);
@@ -788,10 +799,10 @@
                 html += `
                     <div class="flex justify-between items-center bg-gray-50 p-2 rounded border">
                         <div>
-                            <span class="font-bold">รถ: ${r.vehicle_plate}</span> 
-                            <span class="text-gray-500">(${r.driver_name})</span>
+                            <span class="font-bold">รถ: ${escapeHtml(r.vehicle_plate)}</span> 
+                            <span class="text-gray-500">(${escapeHtml(r.driver_name)})</span>
                         </div>
-                        <button onclick="adminForceEndDuty(${r.id}, '${r.vehicle_plate}')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-[11px] shadow">
+                        <button onclick="adminForceEndDuty(${r.id}, '${escapeHtml(r.vehicle_plate)}')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-[11px] shadow">
                             <i class="fa-solid fa-power-off"></i> บังคับจบงาน
                         </button>
                     </div>
@@ -866,8 +877,8 @@
                 div.className = `p-3 rounded-lg border flex justify-between items-center ${log ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-200 shadow-sm'}`;
                 div.innerHTML = `
                     <div>
-                        <span class="font-bold text-sm">บ้านเลขที่ ${h.house_no} (${h.moo})</span>
-                        <p class="text-xs text-gray-500">เจ้าของ: ${h.owner || '-'} | ถัง: ${h.bin_count} ใบ</p>
+                        <span class="font-bold text-sm">บ้านเลขที่ ${escapeHtml(h.house_no)} (${escapeHtml(h.moo)})</span>
+                        <p class="text-xs text-gray-500">เจ้าของ: ${escapeHtml(h.owner || '-')} | ถัง: ${escapeHtml(h.bin_count)} ใบ</p>
                     </div>
                     <div>
                         ${log ? '<span class="text-emerald-600 font-semibold text-xs bg-emerald-100 px-2.5 py-1 rounded-full"><i class="fa-solid fa-check"></i> เก็บแล้ว</span>' : `<button onclick="markCollected(${h.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-check"></i> กดเก็บขยะ</button>`}
@@ -921,7 +932,7 @@
             (vehicles || []).forEach(v => {
                 const div = document.createElement('div');
                 div.className = "flex justify-between items-center bg-gray-50 p-2 rounded border";
-                div.innerHTML = `<span>${v.plate_no} (${v.vehicle_type})</span>`;
+                div.innerHTML = `<span>${escapeHtml(v.plate_no)} (${escapeHtml(v.vehicle_type)})</span>`;
                 container.appendChild(div);
             });
         }
@@ -990,10 +1001,10 @@
             let html = `<table class="w-full text-left border-collapse"><thead><tr class="bg-gray-100 border text-[11px]"><th class="p-2 border">หมู่บ้าน</th><th class="p-2 border">บ้านเลขที่</th><th class="p-2 border">เจ้าของ</th><th class="p-2 border text-center">ถัง</th><th class="p-2 border text-center">จัดการ</th></tr></thead><tbody>`;
             houses.forEach(h => {
                 html += `<tr class="border hover:bg-gray-50">
-                    <td class="p-2 border">${h.moo}</td>
-                    <td class="p-2 border font-semibold">${h.house_no}</td>
-                    <td class="p-2 border">${h.owner || '-'}</td>
-                    <td class="p-2 border text-center">${h.bin_count}</td>
+                    <td class="p-2 border">${escapeHtml(h.moo)}</td>
+                    <td class="p-2 border font-semibold">${escapeHtml(h.house_no)}</td>
+                    <td class="p-2 border">${escapeHtml(h.owner || '-')}</td>
+                    <td class="p-2 border text-center">${escapeHtml(h.bin_count)}</td>
                     <td class="p-2 border text-center space-x-1">
                         <button onclick="editHouse(${h.id})" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
                         <button onclick="deleteHouse(${h.id})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
@@ -1142,7 +1153,6 @@
                 if (!mooGroups[h.moo]) {
                     mooGroups[h.moo] = { collected: [], notCollected: [] };
                 }
-                // ตรวจสอบว่าบ้านหลังนี้ถูกเก็บในช่วงวันที่เลือกหรือไม่
                 const isCollected = (logs || []).some(l => l.house_id === h.id && l.status === 'collected');
                 if (isCollected) {
                     mooGroups[h.moo].collected.push(h);
@@ -1157,7 +1167,7 @@
             (logs || []).forEach(l => {
                 const run = (runs || []).find(r => r.id === l.run_id) || { driver_name: 'ไม่ระบุคนขับ', vehicle_plate: 'ไม่ระบุทะเบียน' };
                 const house = (houses || []).find(h => h.id === l.house_id);
-                if (!house) return; // ข้ามถ้าไม่อยู่ในเงื่อนไขหมู่บ้านที่เลือก
+                if (!house) return;
                 
                 const key = `${run.vehicle_plate}_${run.driver_name}`;
                 if (!driverStats[key]) {
@@ -1179,7 +1189,7 @@
                         รายงานสรุปผลการปฏิบัติงานเก็บขนขยะมูลฝอยและสถานะรายหมู่บ้าน<br>
                         องค์การบริหารส่วนตำบลเมืองเก่า กองสาธารณสุขและสิ่งแวดล้อม
                     </div>
-                    ประจำ${dateRangeText} ${selectedMoo ? `(พื้นที่: ${selectedMoo})` : '(ทุกหมู่บ้าน)'}
+                    ประจำ${dateRangeText} ${selectedMoo ? `(พื้นที่: ${escapeHtml(selectedMoo)})` : '(ทุกหมู่บ้าน)'}
                 </div>
             `;
 
@@ -1202,9 +1212,9 @@
             if (Object.keys(driverStats).length > 0) {
                 Object.values(driverStats).forEach(st => {
                     html += `<tr class="border hover:bg-gray-50">
-                        <td class="p-2 border font-semibold">${st.plate}</td>
-                        <td class="p-2 border">${st.driver}</td>
-                        <td class="p-2 border">${Array.from(st.moos).join(', ')}</td>
+                        <td class="p-2 border font-semibold">${escapeHtml(st.plate)}</td>
+                        <td class="p-2 border">${escapeHtml(st.driver)}</td>
+                        <td class="p-2 border">${escapeHtml(Array.from(st.moos).join(', '))}</td>
                         <td class="p-2 border text-center">${st.housesCount}</td>
                         <td class="p-2 border text-center font-bold text-emerald-700">${st.bins}</td>
                     </tr>`;
@@ -1220,13 +1230,13 @@
 
             Object.keys(mooGroups).forEach(moo => {
                 const group = mooGroups[moo];
-                const collectedNos = group.collected.map(h => h.house_no).join(', ') || '-';
-                const notCollectedNos = group.notCollected.map(h => h.house_no).join(', ') || '-';
+                const collectedNos = group.collected.map(h => escapeHtml(h.house_no)).join(', ') || '-';
+                const notCollectedNos = group.notCollected.map(h => escapeHtml(h.house_no)).join(', ') || '-';
 
                 html += `
                     <div class="border rounded-lg p-3 bg-white shadow-sm text-xs space-y-1.5">
                         <div class="font-bold text-emerald-800 border-b pb-1 flex justify-between">
-                            <span>📍 ${moo}</span>
+                            <span>📍 ${escapeHtml(moo)}</span>
                             <span class="text-gray-500">ทั้งหมด ${group.collected.length + group.notCollected.length} หลังคาเรือน</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
