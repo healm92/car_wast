@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบติดตามการเก็บขยะ อบต. (Smart Waste Tracker)</title>
     <!-- Tailwind CSS & FontAwesome & Leaflet CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- SheetJS สำหรับ Excel และ Supabase JS Client -->
@@ -341,6 +341,11 @@
                 .replace(/'/g, '&#039;');
         }
 
+        // 🛡️ สร้างค่า string สำหรับใส่ใน onclick="..." อย่างปลอดภัย (JSON string แล้วค่อย escape HTML)
+        function jsArg(v) {
+            return escapeHtml(JSON.stringify(String(v === null || v === undefined ? '' : v)));
+        }
+
         let currentSession = JSON.parse(localStorage.getItem('carwast_session')) || null;
         let driverMap = null, adminMap = null;
         let markerUser = null, driverHouseMarkers = [], adminHouseMarkers = [];
@@ -356,7 +361,26 @@
             
             const { data: { session } } = await _supabase.auth.getSession();
 
-            if (session && currentSession) {
+            // 🛡️ ไม่เชื่อค่า role ใน localStorage: ดึงสิทธิ์จริงจากฐานข้อมูลทุกครั้งที่เปิดหน้า
+            let verifiedProfile = null;
+            if (session) {
+                const { data: prof } = await _supabase.from('users')
+                    .select('username, full_name, role')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+                verifiedProfile = prof;
+            }
+
+            if (session && verifiedProfile) {
+                currentSession = {
+                    username: verifiedProfile.username,
+                    fullName: verifiedProfile.full_name,
+                    role: verifiedProfile.role,
+                    plate: null,
+                    runId: null
+                };
+                localStorage.setItem('carwast_session', JSON.stringify(currentSession));
+
                 if (currentSession.role === 'admin') {
                     switchView('admin');
                 } else if (currentSession.role === 'driver') {
@@ -452,7 +476,7 @@
         async function handleLogin(event) {
             event.preventDefault();
             const email = document.getElementById('login-user').value.trim();
-            const password = document.getElementById('login-pass').value.trim();
+            const password = document.getElementById('login-pass').value;
 
             try {
                 const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({
@@ -630,6 +654,7 @@
             });
         }
 
+        let lastGpsPush = 0;
         function trackGPS() {
             if ("geolocation" in navigator) {
                 watchId = navigator.geolocation.watchPosition((pos) => {
@@ -640,7 +665,9 @@
                     
                     updateUserMapMarker(lat, lng);
 
-                    if (currentSession && currentSession.runId) {
+                    // จำกัดการส่งพิกัดขึ้นเซิร์ฟเวอร์ไม่เกินทุก 10 วินาที
+                    if (currentSession && currentSession.runId && Date.now() - lastGpsPush >= 10000) {
+                        lastGpsPush = Date.now();
                         _supabase.from('collection_runs').update({
                             current_lat: lat,
                             current_lng: lng
@@ -735,9 +762,9 @@
                         สถานะ: ${statusText}
                         <hr style="margin: 6px 0;">
                         <div style="display: flex; gap: 4px; flex-direction: column;">
-                            <button onclick="tryMarkCollected(${h.id}, ${h.latitude}, ${h.longitude}, '${escapeHtml(h.house_no)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 rounded text-xs font-bold shadow text-center"><i class="fa-solid fa-check"></i> ✅ กดเก็บ (รัศมี 100ม.)</button>
+                            <button onclick="tryMarkCollected(${Number(h.id)}, ${Number(h.latitude)}, ${Number(h.longitude)}, ${jsArg(h.house_no)})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 rounded text-xs font-bold shadow text-center"><i class="fa-solid fa-check"></i> ✅ กดเก็บ (รัศมี 100ม.)</button>
                             <div style="display: flex; gap: 4px;">
-                                <button onclick="markSkipped(${h.id}, '${escapeHtml(h.house_no)}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded text-xs font-semibold shadow text-center"><i class="fa-solid fa-forward"></i> ⏭️ ข้าม</button>
+                                <button onclick="markSkipped(${Number(h.id)}, ${jsArg(h.house_no)})" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded text-xs font-semibold shadow text-center"><i class="fa-solid fa-forward"></i> ⏭️ ข้าม</button>
                                 <a href="${gMapsUrl}" target="_blank" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-semibold shadow text-center inline-block" style="text-decoration:none;"><i class="fa-solid fa-diamond-turn-right"></i> นำทาง</a>
                             </div>
                         </div>
@@ -906,7 +933,7 @@
                         <span class="font-bold text-xs">บ้านเลขที่ ${escapeHtml(h.house_no)}</span>
                         <p class="text-[11px] text-gray-500">เจ้าของ: ${escapeHtml(h.owner || '-')} | สถานะ: ${status === 'skipped' ? '🟡 ถูกข้าม' : '🔴 ยังไม่เก็บ'}</p>
                     </div>
-                    <button onclick="doCatchUp(${h.id}, '${escapeHtml(h.house_no)}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow">
+                    <button onclick="doCatchUp(${Number(h.id)}, ${jsArg(h.house_no)})" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow">
                         <i class="fa-solid fa-check-double"></i> เก็บตก (Catch-up)
                     </button>
                 `;
@@ -1001,7 +1028,7 @@
                             <span class="font-bold">รถ: ${escapeHtml(r.vehicle_plate)}</span> 
                             <span class="text-gray-500">(${escapeHtml(r.driver_name)})</span>
                         </div>
-                        <button onclick="adminForceEndDuty(${r.id}, '${escapeHtml(r.vehicle_plate)}')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-[11px] shadow">
+                        <button onclick="adminForceEndDuty(${Number(r.id)}, ${jsArg(r.vehicle_plate)})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-[11px] shadow">
                             <i class="fa-solid fa-power-off"></i> บังคับจบงาน
                         </button>
                     </div>
@@ -1082,7 +1109,7 @@
                 } else if (status === 'catch_up') {
                     statusBadge = '<span class="text-blue-600 font-semibold text-xs bg-blue-100 px-2.5 py-1 rounded-full"><i class="fa-solid fa-check-double"></i> เก็บตก</span>';
                 } else {
-                    statusBadge = `<button onclick="tryMarkCollected(${h.id}, ${h.latitude}, ${h.longitude}, '${escapeHtml(h.house_no)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-check"></i> กดเก็บ (รัศมี 100ม.)</button>`;
+                    statusBadge = `<button onclick="tryMarkCollected(${Number(h.id)}, ${Number(h.latitude)}, ${Number(h.longitude)}, ${jsArg(h.house_no)})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-check"></i> กดเก็บ (รัศมี 100ม.)</button>`;
                 }
 
                 const div = document.createElement('div');
@@ -1093,7 +1120,7 @@
                         <p class="text-xs text-gray-500">เจ้าของ: ${escapeHtml(h.owner || '-')} | ถัง: ${escapeHtml(h.bin_count)} ใบ</p>
                     </div>
                     <div class="flex gap-1 items-center">
-                        ${status !== 'collected' && status !== 'catch_up' ? `<button onclick="markSkipped(${h.id}, '${escapeHtml(h.house_no)}')" class="bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 rounded text-xs shadow"><i class="fa-solid fa-forward"></i> ข้าม</button>` : ''}
+                        ${status !== 'collected' && status !== 'catch_up' ? `<button onclick="markSkipped(${Number(h.id)}, ${jsArg(h.house_no)})" class="bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 rounded text-xs shadow"><i class="fa-solid fa-forward"></i> ข้าม</button>` : ''}
                         ${statusBadge}
                     </div>
                 `;
@@ -1186,12 +1213,22 @@
                 div.innerHTML = `
                     <span><b>${escapeHtml(v.plate_no)}</b> (${escapeHtml(v.vehicle_type)})</span>
                     <div class="space-x-1">
-                        <button onclick="editVehicle('${escapeHtml(v.plate_no)}', '${escapeHtml(v.vehicle_type)}')" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[11px]"><i class="fa-solid fa-pen"></i> แก้ไข</button>
-                        <button onclick="deleteVehicle('${escapeHtml(v.plate_no)}')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-[11px]"><i class="fa-solid fa-trash"></i> ลบ</button>
+                        <button onclick="editVehicle(${jsArg(v.plate_no)}, ${jsArg(v.vehicle_type)})" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[11px]"><i class="fa-solid fa-pen"></i> แก้ไข</button>
+                        <button onclick="deleteVehicle(${jsArg(v.plate_no)})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-[11px]"><i class="fa-solid fa-trash"></i> ลบ</button>
                     </div>
                 `;
                 container.appendChild(div);
             });
+        }
+
+        // ตรวจความถูกต้องของข้อมูลจุดเก็บขยะก่อนส่งเข้าฐานข้อมูล
+        function isValidHousePayload(p) {
+            return typeof p.house_no === 'string' && p.house_no.trim().length > 0 && p.house_no.length <= 30
+                && typeof p.moo === 'string' && p.moo.trim().length > 0 && p.moo.length <= 60
+                && String(p.owner || '').length <= 120
+                && Number.isInteger(p.bin_count) && p.bin_count >= 0 && p.bin_count <= 100
+                && Number.isFinite(p.latitude) && p.latitude >= -90 && p.latitude <= 90
+                && Number.isFinite(p.longitude) && p.longitude >= -180 && p.longitude <= 180;
         }
 
         async function saveHouse(e) {
@@ -1206,10 +1243,17 @@
                 longitude: parseFloat(document.getElementById('h-lng').value)
             };
 
-            if (id) {
-                await _supabase.from('houses').update(payload).eq('id', id);
-            } else {
-                await _supabase.from('houses').insert([payload]);
+            if (!isValidHousePayload(payload)) {
+                alert("ข้อมูลไม่ถูกต้อง: ตรวจสอบบ้านเลขที่ หมู่ จำนวนถัง และพิกัด (ละติจูด/ลองจิจูด)");
+                return;
+            }
+
+            const saveResult = id
+                ? await _supabase.from('houses').update(payload).eq('id', id)
+                : await _supabase.from('houses').insert([payload]);
+            if (saveResult.error) {
+                alert("บันทึกไม่สำเร็จ: " + saveResult.error.message);
+                return;
             }
 
             resetHouseForm();
@@ -1263,8 +1307,8 @@
                     <td class="p-2 border">${escapeHtml(h.owner || '-')}</td>
                     <td class="p-2 border text-center">${escapeHtml(h.bin_count)}</td>
                     <td class="p-2 border text-center space-x-1">
-                        <button onclick="editHouse(${h.id})" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
-                        <button onclick="deleteHouse(${h.id})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="editHouse(${Number(h.id)})" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
+                        <button onclick="deleteHouse(${Number(h.id)})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>`;
             });
@@ -1315,15 +1359,31 @@
             reader.onload = async function(evt) {
                 const workbook = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                if (rows.length === 0 || rows.length > 2000) {
+                    alert("ไฟล์ต้องมีข้อมูล 1–2,000 แถว");
+                    e.target.value = '';
+                    return;
+                }
                 const payload = rows.map(r => ({
-                    house_no: String(r.house_no),
-                    moo: String(r.moo),
-                    owner: String(r.owner || '-'),
+                    house_no: String(r.house_no ?? '').trim(),
+                    moo: String(r.moo ?? '').trim(),
+                    owner: String(r.owner || '-').trim(),
                     bin_count: Number(r.bin_count || 1),
                     latitude: Number(r.latitude),
                     longitude: Number(r.longitude)
                 }));
-                await _supabase.from('houses').insert(payload);
+                const badIndex = payload.findIndex(p => !isValidHousePayload(p));
+                if (badIndex !== -1) {
+                    alert(`ข้อมูลแถวที่ ${badIndex + 2} ในไฟล์ไม่ถูกต้อง (ตรวจบ้านเลขที่ หมู่ จำนวนถัง และพิกัด) ยกเลิกการนำเข้าทั้งหมด`);
+                    e.target.value = '';
+                    return;
+                }
+                const { error: importError } = await _supabase.from('houses').insert(payload);
+                if (importError) {
+                    alert("นำเข้าไม่สำเร็จ: " + importError.message);
+                    e.target.value = '';
+                    return;
+                }
                 alert(`นำเข้าสำเร็จ ${payload.length} รายการ`);
                 loadAdminHousesTable();
                 loadReportMooDropdown();
