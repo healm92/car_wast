@@ -346,6 +346,19 @@
             return escapeHtml(JSON.stringify(String(v === null || v === undefined ? '' : v)));
         }
 
+        // ดึงข้อมูลทั้งหมดทีละหน้า (Supabase ส่งกลับสูงสุด 1,000 แถวต่อคำสั่ง จึงต้องแบ่งหน้า)
+        async function fetchAll(makeQuery, ascending = true) {
+            const PAGE = 1000;
+            let all = [];
+            for (let from = 0; ; from += PAGE) {
+                const { data, error } = await makeQuery().order('id', { ascending }).range(from, from + PAGE - 1);
+                if (error) return { data: null, error };
+                all = all.concat(data || []);
+                if (!data || data.length < PAGE) break;
+            }
+            return { data: all, error: null };
+        }
+
         let currentSession = JSON.parse(localStorage.getItem('carwast_session')) || null;
         let driverMap = null, adminMap = null;
         let markerUser = null, driverHouseMarkers = [], adminHouseMarkers = [];
@@ -419,7 +432,7 @@
         async function loadReportMooDropdown() {
             const select = document.getElementById('report-moo-filter');
             if (!select) return;
-            const { data: houses } = await _supabase.from('houses').select('moo');
+            const { data: houses } = await fetchAll(() => _supabase.from('houses').select('moo'));
             const moos = [...new Set((houses || []).map(h => h.moo))];
             select.innerHTML = '<option value="">ทุกหมู่บ้าน (ภาพรวมทั้งหมด)</option>';
             moos.forEach(m => {
@@ -643,7 +656,7 @@
 
         async function loadDriverMooFilter() {
             const select = document.getElementById('filter-moo');
-            const { data: houses } = await _supabase.from('houses').select('moo');
+            const { data: houses } = await fetchAll(() => _supabase.from('houses').select('moo'));
             const moos = [...new Set((houses || []).map(h => h.moo))];
             select.innerHTML = '<option value="">ทุกหมู่บ้าน</option>';
             moos.forEach(m => {
@@ -737,8 +750,8 @@
             const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
             const mondayOfWeek = new Date(now.setDate(diffToMonday)).toISOString().slice(0, 10);
 
-            const { data: houses } = await _supabase.from('houses').select('*');
-            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00');
+            const { data: houses } = await fetchAll(() => _supabase.from('houses').select('*'));
+            const { data: logs } = await fetchAll(() => _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00'));
 
             (houses || []).forEach(h => {
                 const log = (logs || []).find(l => l.house_id === h.id);
@@ -787,8 +800,8 @@
             const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
             const mondayOfWeek = new Date(now.setDate(diffToMonday)).toISOString().slice(0, 10);
 
-            const { data: houses } = await _supabase.from('houses').select('*');
-            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00');
+            const { data: houses } = await fetchAll(() => _supabase.from('houses').select('*'));
+            const { data: logs } = await fetchAll(() => _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00'));
 
             (houses || []).forEach(h => {
                 const log = (logs || []).find(l => l.house_id === h.id);
@@ -882,7 +895,7 @@
             const select = document.getElementById('catchup-moo-select');
             modal.classList.remove('hidden');
 
-            const { data: houses } = await _supabase.from('houses').select('moo');
+            const { data: houses } = await fetchAll(() => _supabase.from('houses').select('moo'));
             const moos = [...new Set((houses || []).map(h => h.moo))];
             select.innerHTML = '<option value="">-- กรุณาเลือกหมู่บ้าน --</option>';
             moos.forEach(m => {
@@ -911,8 +924,8 @@
             const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
             const mondayOfWeek = new Date(now.setDate(diffToMonday)).toISOString().slice(0, 10);
 
-            const { data: houses } = await _supabase.from('houses').select('*').eq('moo', moo);
-            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00');
+            const { data: houses } = await fetchAll(() => _supabase.from('houses').select('*').eq('moo', moo));
+            const { data: logs } = await fetchAll(() => _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00'));
 
             container.innerHTML = '';
             if (!houses || houses.length === 0) {
@@ -1087,10 +1100,12 @@
 
             container.innerHTML = '';
 
-            let query = _supabase.from('houses').select('*');
-            if (filterMoo) query = query.eq('moo', filterMoo);
-            const { data: houses } = await query;
-            const { data: logs } = await _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00');
+            const { data: houses } = await fetchAll(() => {
+                let q = _supabase.from('houses').select('*');
+                if (filterMoo) q = q.eq('moo', filterMoo);
+                return q;
+            });
+            const { data: logs } = await fetchAll(() => _supabase.from('collection_logs').select('*').gte('collected_at', mondayOfWeek + 'T00:00:00'));
 
             if (!houses || houses.length === 0) {
                 container.innerHTML = `<p class="text-gray-400 text-center py-2 text-xs">ไม่พบข้อมูลบ้าน</p>`;
@@ -1131,7 +1146,15 @@
         async function simulateAdminOverride() {
             const no = prompt("กรอกบ้านเลขที่ ที่ต้องการบันทึกว่าเก็บแล้ว:");
             if (!no) return;
-            const { data: h } = await _supabase.from('houses').select('*').eq('house_no', no).single();
+            const { data: matches } = await _supabase.from('houses').select('*').eq('house_no', no.trim());
+            let h = (matches && matches.length === 1) ? matches[0] : null;
+            if (matches && matches.length > 1) {
+                // บ้านเลขที่ซ้ำกันหลายหมู่บ้าน ให้ระบุหมู่เพิ่ม
+                const mooList = matches.map(m => m.moo).join(', ');
+                const mooInput = prompt(`พบบ้านเลขที่ ${no} หลายหมู่บ้าน (${mooList})\nกรุณาพิมพ์ชื่อหมู่ให้ตรงตามรายการ:`);
+                if (!mooInput) return;
+                h = matches.find(m => String(m.moo).trim() === mooInput.trim()) || null;
+            }
             if (h) {
                 await saveCollectionLog(h.id, 'collected', 'บันทึกโดย อบต.');
                 alert(`บันทึกบ้านเลขที่ ${no} สำเร็จ`);
@@ -1274,7 +1297,7 @@
         async function loadAdminHousesTable() {
             const container = document.getElementById('admin-house-list-container');
             const countBadge = document.getElementById('total-houses-count');
-            const { data: houses } = await _supabase.from('houses').select('*').order('id', { ascending: false });
+            const { data: houses } = await fetchAll(() => _supabase.from('houses').select('*'), false);
             if (!houses || houses.length === 0) {
                 container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีข้อมูลจุดเก็บขยะในระบบ</p>';
                 countBadge.innerText = '0 หลัง';
@@ -1359,8 +1382,8 @@
             reader.onload = async function(evt) {
                 const workbook = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                if (rows.length === 0 || rows.length > 2000) {
-                    alert("ไฟล์ต้องมีข้อมูล 1–2,000 แถว");
+                if (rows.length === 0 || rows.length > 10000) {
+                    alert("ไฟล์ต้องมีข้อมูล 1–10,000 แถว");
                     e.target.value = '';
                     return;
                 }
@@ -1378,11 +1401,15 @@
                     e.target.value = '';
                     return;
                 }
-                const { error: importError } = await _supabase.from('houses').insert(payload);
-                if (importError) {
-                    alert("นำเข้าไม่สำเร็จ: " + importError.message);
-                    e.target.value = '';
-                    return;
+                // นำเข้าทีละ 500 แถวเพื่อไม่ให้คำสั่งใหญ่เกินไป
+                for (let i = 0; i < payload.length; i += 500) {
+                    const { error: importError } = await _supabase.from('houses').insert(payload.slice(i, i + 500));
+                    if (importError) {
+                        alert(`นำเข้าไม่สำเร็จ (สำเร็จแล้ว ${i} รายการแรก): ` + importError.message);
+                        e.target.value = '';
+                        loadAdminHousesTable();
+                        return;
+                    }
                 }
                 alert(`นำเข้าสำเร็จ ${payload.length} รายการ`);
                 loadAdminHousesTable();
@@ -1395,10 +1422,10 @@
         async function backupAllDatabase() {
             try {
                 const [housesRes, vehiclesRes, runsRes, logsRes] = await Promise.all([
-                    _supabase.from('houses').select('*'),
+                    fetchAll(() => _supabase.from('houses').select('*')),
                     _supabase.from('vehicles').select('*'),
-                    _supabase.from('collection_runs').select('*'),
-                    _supabase.from('collection_logs').select('*')
+                    fetchAll(() => _supabase.from('collection_runs').select('*')),
+                    fetchAll(() => _supabase.from('collection_logs').select('*'))
                 ]);
 
                 const wb = XLSX.utils.book_new();
@@ -1449,14 +1476,16 @@
 
             container.innerHTML = `<p class="text-gray-400 text-center py-4">กำลังประมวลผลรายงาน...</p>`;
 
-            const { data: runs } = await _supabase.from('collection_runs').select('*');
-            const { data: logs } = await _supabase.from('collection_logs').select('*')
+            const { data: runs } = await fetchAll(() => _supabase.from('collection_runs').select('*'));
+            const { data: logs } = await fetchAll(() => _supabase.from('collection_logs').select('*')
                 .gte('collected_at', startDate + 'T00:00:00')
-                .lte('collected_at', endDate + 'T23:59:59');
+                .lte('collected_at', endDate + 'T23:59:59'));
 
-            let housesQuery = _supabase.from('houses').select('*');
-            if (selectedMoo) housesQuery = housesQuery.eq('moo', selectedMoo);
-            const { data: houses } = await housesQuery;
+            const { data: houses } = await fetchAll(() => {
+                let q = _supabase.from('houses').select('*');
+                if (selectedMoo) q = q.eq('moo', selectedMoo);
+                return q;
+            });
 
             if (!houses || houses.length === 0) {
                 container.innerHTML = `<div class="p-4 bg-yellow-50 text-yellow-800 rounded-lg text-center text-xs">ไม่พบข้อมูลจุดเก็บขยะในระบบ</div>`;
